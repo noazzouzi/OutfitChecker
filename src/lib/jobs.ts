@@ -18,6 +18,20 @@ export type PayloadAnalyse = {
  * n'en crée pas un second — sinon enregistrer deux fois de suite consommerait
  * deux fois le quota pour le même résultat.
  */
+/**
+ * Supprime les tâches d'analyse rattachées à un vêtement.
+ *
+ * `jobs_ia.payload` est du JSON : le lien vers le vêtement n'est pas une clé
+ * étrangère, rien ne nettoie donc ces lignes automatiquement. Sans ça, un
+ * vêtement supprimé ou réanalysé laisse derrière lui des tâches en échec que
+ * le bandeau continue de compter, sans aucun moyen de les faire disparaître.
+ */
+export async function supprimerJobsDuVetement(vetementId: string): Promise<void> {
+  await db
+    .delete(jobsIa)
+    .where(sql`json_extract(${jobsIa.payload}, '$.vetementId') = ${vetementId}`)
+}
+
 export async function enfilerAnalyse(vetementId: string, ecraser = false): Promise<void> {
   const existants = await db
     .select({ id: jobsIa.id, payload: jobsIa.payload })
@@ -28,6 +42,10 @@ export async function enfilerAnalyse(vetementId: string, ecraser = false): Promi
     (job) => (job.payload as PayloadAnalyse | null)?.vetementId === vetementId,
   )
   if (dejaEnFile) return
+
+  // Une nouvelle demande remplace l'historique du vêtement : sans ça, un échec
+  // précédent resterait compté même après une analyse réussie.
+  await supprimerJobsDuVetement(vetementId)
 
   await db.insert(jobsIa).values({
     id: randomUUID(),

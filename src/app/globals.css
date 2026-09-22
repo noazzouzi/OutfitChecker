@@ -52,6 +52,17 @@ body {
          disabled:cursor-not-allowed disabled:opacity-50;
 }
 
+/*
+ * Les cases des groupes sont `sr-only` — focalisables au clavier mais
+ * invisibles. Sans cette règle, un utilisateur au clavier ne verrait pas où il
+ * se trouve. `outline` plutôt que `ring` : la propriété est faite pour ça, et
+ * elle ne dépend pas des variables d'ombre de Tailwind.
+ */
+.puce:has(:focus-visible) {
+  outline: 2px solid var(--texte-doux);
+  outline-offset: 2px;
+}
+
 .bouton-secondaire {
   @apply inline-flex items-center justify-center gap-2 rounded-md border border-bordure
          bg-surface px-4 py-2 text-sm font-medium text-texte transition

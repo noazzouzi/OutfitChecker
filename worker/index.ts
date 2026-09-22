@@ -12,7 +12,7 @@
  * que les appels sont parallèles, et rien ici n'est urgent.
  */
 import fs from 'node:fs'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { jobsIa, vetements } from '@/lib/db/schema'
 import {
@@ -260,9 +260,26 @@ async function traiterUnJob(): Promise<boolean> {
   }
 }
 
+/**
+ * Supprime les tâches dont le vêtement n'existe plus.
+ *
+ * Le lien vers le vêtement vit dans du JSON, pas dans une clé étrangère : une
+ * base créée avant que la suppression ne fasse le ménage garde des tâches en
+ * échec que le bandeau compte sans fin. Ce passage au démarrage la répare.
+ */
+async function purgerJobsOrphelins() {
+  const resultat = await db.delete(jobsIa).where(
+    sql`${jobsIa.type} = 'analyse_vetement'
+        and json_extract(${jobsIa.payload}, '$.vetementId') not in (select id from vetements)`,
+  )
+  const nombre = (resultat as { changes?: number }).changes ?? 0
+  if (nombre > 0) journal(`${nombre} tâche(s) orpheline(s) supprimée(s).`)
+}
+
 async function boucle() {
   journal('démarré')
   await recupererJobsInterrompus()
+  await purgerJobsOrphelins()
 
   while (!arretDemande) {
     let aTravaille = false

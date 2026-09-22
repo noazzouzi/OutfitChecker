@@ -99,8 +99,8 @@ export function GroupeCases({
         {options.map((option) => (
           <label
             key={option}
-            className="cursor-pointer rounded-full border border-bordure bg-surface px-3 py-1
-                       text-sm transition hover:border-texte-doux
+            className="puce cursor-pointer rounded-full border border-bordure bg-surface px-3
+                       py-1 text-sm transition hover:border-texte-doux
                        has-checked:border-texte has-checked:bg-texte has-checked:text-fond"
           >
             <input

@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { outfitVetements, outfits, profil, vetements } from '@/lib/db/schema'
 import { obtenirOutfit, obtenirVetement } from '@/lib/requetes'
-import { enfilerAnalyse, enfilerSuggestion } from '@/lib/jobs'
+import { enfilerAnalyse, enfilerSuggestion, supprimerJobsDuVetement } from '@/lib/jobs'
 import { lireFicheProduit, type FicheProduit } from '@/lib/boutique'
 import {
   enregistrerFichierEnvoye,
@@ -201,6 +201,8 @@ export async function modifierVetement(
 export async function supprimerVetement(id: string): Promise<void> {
   const existant = await obtenirVetement(id)
   await db.delete(vetements).where(eq(vetements.id, id))
+  // Les tâches d'analyse ne sont pas liées par clé étrangère : à nettoyer à la main.
+  await supprimerJobsDuVetement(id)
   await supprimerImage(existant?.imageFichier)
   await supprimerImage(existant?.imageDetoureeFichier)
 
