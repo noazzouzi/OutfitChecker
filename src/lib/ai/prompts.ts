@@ -151,3 +151,76 @@ Réponds par un objet JSON valide et RIEN d'autre :
 Si la garde-robe ne permet pas de composer trois tenues distinctes, propose-en
 moins plutôt que de te répéter ou d'inventer des pièces.`
 }
+
+/**
+ * Prompt d'OutfitCopy.
+ *
+ * La décomposition de la tenue vue et la recherche de correspondances se font
+ * dans le même appel : le modèle choisit les pièces en regardant l'image, pas
+ * un résumé qu'il aurait lui-même produit.
+ */
+export function promptOutfitCopy(cheminImage: string, garderobe: PieceResumee[]): string {
+  const inventaire = garderobe
+    .map((piece, index) => {
+      const details = [
+        piece.sousCategorie ?? piece.nom,
+        piece.couleurPrincipale,
+        piece.matiere,
+        piece.motif && piece.motif !== 'uni' ? piece.motif : null,
+      ]
+        .filter(Boolean)
+        .join(', ')
+      const etiquettes = [piece.styles.join('/'), piece.saisons.join('/')]
+        .filter((x) => x.length > 0)
+        .join(' · ')
+      return `${index + 1}. [${piece.categorie}] ${details}${etiquettes ? ` — ${etiquettes}` : ''}`
+    })
+    .join('\n')
+
+  return `On te montre une photo de quelqu'un, et on veut s'approcher de sa tenue
+avec les vêtements d'une garde-robe existante.
+
+Image : ${cheminImage}
+
+Décris d'abord la tenue portée. Ne t'occupe ni du décor, ni du visage, ni de la
+coiffure, ni des personnes à l'arrière-plan. Ne retiens que les vêtements et les
+accessoires effectivement portés par le sujet principal.
+
+Garde-robe disponible :
+${inventaire}
+
+Puis propose 2 à 3 combinaisons de ces pièces qui s'approchent le plus de la
+tenue vue. N'utilise QUE les numéros ci-dessus. Une combinaison doit rester
+portable : pas deux pièces de la même catégorie, sauf accessoires.
+
+Classe-les de la plus proche à la moins proche. Sois honnête sur la proximité :
+si la garde-robe ne permet pas de s'approcher, dis-le par une note basse plutôt
+que de surévaluer. Mieux vaut deux propositions justes que trois dont une
+fantaisiste.
+
+Réponds par un objet JSON valide et RIEN d'autre :
+
+{
+  "reference": {
+    "resume": "une phrase sur le registre stylistique d'ensemble",
+    "pieces": [
+      {
+        "categorie": "haut, bas, robe, outerwear, chaussures ou accessoire",
+        "description": "la pièce en quelques mots : type, coupe, détails visibles",
+        "couleur": "nom courant en français",
+        "matiere": "matière apparente, ou null si indécidable"
+      }
+    ]
+  },
+  "propositions": [
+    {
+      "nom": "nom court de la combinaison",
+      "pieces": [numéros des pièces de la garde-robe],
+      "proximite": 0,
+      "justification": "une phrase : ce qui rapproche cette combinaison de la tenue vue, et ce qui l'en écarte"
+    }
+  ]
+}
+
+"proximite" est un entier de 0 à 100.`
+}

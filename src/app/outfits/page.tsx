@@ -12,6 +12,9 @@ export default async function PageOutfits() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Tenues</h1>
         <div className="flex items-center gap-2">
+          <Link className="bouton-secondaire" href="/outfits/copier">
+            OutfitCopy
+          </Link>
           <Link className="bouton-secondaire" href="/outfits/suggerer">
             Demander à l&apos;IA
           </Link>

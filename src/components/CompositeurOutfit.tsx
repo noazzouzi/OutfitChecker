@@ -13,11 +13,14 @@ export function CompositeurOutfit({
   preselection = [],
   nomPropose = '',
   source = 'manuel',
+  referenceImageFichier = null,
 }: {
   vetements: Vetement[]
   preselection?: string[]
   nomPropose?: string
   source?: string
+  /** Image OutfitCopy dont la tenue est issue, conservée avec elle. */
+  referenceImageFichier?: string | null
 }) {
   const [etat, envoyer, enCours] = useActionState(creerOutfit, null)
   const [choisis, setChoisis] = useState<string[]>(preselection)
@@ -40,6 +43,9 @@ export function CompositeurOutfit({
   return (
     <form action={envoyer} className="space-y-8">
       <input type="hidden" name="source" value={source} />
+      {referenceImageFichier && (
+        <input type="hidden" name="referenceImageFichier" value={referenceImageFichier} />
+      )}
       {choisis.map((id) => (
         <input key={id} type="hidden" name="vetementIds" value={id} />
       ))}

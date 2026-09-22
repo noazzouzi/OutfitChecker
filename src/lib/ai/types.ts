@@ -52,6 +52,30 @@ export type OutfitSuggere = {
   justification: string
 }
 
+/** Une pièce repérée sur l'image de référence. */
+export type PieceReference = {
+  categorie: string
+  description: string
+  couleur: string | null
+  matiere: string | null
+}
+
+export type TenueDeReference = {
+  /** Le registre stylistique d'ensemble, en une phrase. */
+  resume: string
+  pieces: PieceReference[]
+}
+
+export type PropositionCopie = OutfitSuggere & {
+  /** 0 à 100 : à quel point la combinaison approche la tenue de référence. */
+  proximite: number
+}
+
+export type ResultatOutfitCopy = {
+  reference: TenueDeReference
+  propositions: PropositionCopie[]
+}
+
 /**
  * Seul point de contact entre l'application et l'IA.
  *
@@ -65,6 +89,19 @@ export interface FournisseurIA {
     garderobe: PieceResumee[],
     contrainte: ContrainteOutfit,
   ): Promise<OutfitSuggere[]>
+  /**
+   * OutfitCopy : décompose la tenue vue sur une image et cherche, dans la
+   * garde-robe, les combinaisons qui s'en approchent le plus.
+   *
+   * Un seul appel plutôt que deux — décomposer puis apparier — parce que le
+   * modèle choisit les pièces en ayant l'image sous les yeux, ce qu'un résumé
+   * textuel intermédiaire lui retirerait. Et parce que ça consomme moitié
+   * moins de quota.
+   */
+  copierTenue(
+    cheminImage: string,
+    garderobe: PieceResumee[],
+  ): Promise<ResultatOutfitCopy>
 }
 
 /**

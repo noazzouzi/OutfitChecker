@@ -1,14 +1,20 @@
 import { listerVetements } from '@/lib/requetes'
 import { CompositeurOutfit } from '@/components/CompositeurOutfit'
+import { MOTIF_NOM_FICHIER } from '@/lib/images'
 
 export const dynamic = 'force-dynamic'
 
 export default async function PageNouvelOutfit({
   searchParams,
 }: {
-  searchParams: Promise<{ pieces?: string; nom?: string; source?: string }>
+  searchParams: Promise<{
+    pieces?: string
+    nom?: string
+    source?: string
+    reference?: string
+  }>
 }) {
-  const { pieces, nom, source } = await searchParams
+  const { pieces, nom, source, reference } = await searchParams
   const vetements = await listerVetements()
 
   // Une proposition de l'IA arrive par l'URL : on ne fait confiance qu'aux
@@ -23,7 +29,10 @@ export default async function PageNouvelOutfit({
         vetements={vetements}
         preselection={preselection}
         nomPropose={nom ?? ''}
-        source={source === 'suggestion_ia' ? 'suggestion_ia' : 'manuel'}
+        source={
+          source === 'suggestion_ia' || source === 'outfitcopy' ? source : 'manuel'
+        }
+        referenceImageFichier={reference && MOTIF_NOM_FICHIER.test(reference) ? reference : null}
       />
     </div>
   )

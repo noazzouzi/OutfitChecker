@@ -9,7 +9,12 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { outfitVetements, outfits, profil, vetements } from '@/lib/db/schema'
 import { obtenirOutfit, obtenirVetement } from '@/lib/requetes'
-import { enfilerAnalyse, enfilerSuggestion, supprimerJobsDuVetement } from '@/lib/jobs'
+import {
+  enfilerAnalyse,
+  enfilerOutfitCopy,
+  enfilerSuggestion,
+  supprimerJobsDuVetement,
+} from '@/lib/jobs'
 import { lireFicheProduit, type FicheProduit } from '@/lib/boutique'
 import {
   enregistrerFichierEnvoye,
@@ -18,6 +23,7 @@ import {
 } from '@/lib/images.server'
 import { CATEGORIES, OCCASIONS, SAISONS, SOURCES_OUTFIT, STYLES } from '@/lib/constantes'
 import { ordonnerPieces } from '@/lib/prompts-image'
+import { MOTIF_NOM_FICHIER } from '@/lib/images'
 
 export type EtatFormulaire = { erreur: string } | null
 
@@ -346,6 +352,11 @@ export async function creerOutfit(
     const pieces = await db.select().from(vetements).where(inArray(vetements.id, ids))
     if (pieces.length < 2) return { erreur: 'Les pièces sélectionnées sont introuvables.' }
 
+    // Vient d'un paramètre d'URL : on ne retient qu'un nom de fichier valide.
+    const reference = formData.get('referenceImageFichier')
+    const referenceImageFichier =
+      typeof reference === 'string' && MOTIF_NOM_FICHIER.test(reference) ? reference : null
+
     id = randomUUID()
     await db.insert(outfits).values({
       id,
@@ -353,6 +364,7 @@ export async function creerOutfit(
       ...analyse.data,
       occasion: analyse.data.occasion as never,
       saison: analyse.data.saison as never,
+      referenceImageFichier,
     })
 
     // L'ordre est calculé, pas subi : il détermine à la fois la numérotation
@@ -378,6 +390,18 @@ export async function supprimerOutfit(id: string): Promise<void> {
   const existant = await obtenirOutfit(id)
   await db.delete(outfits).where(eq(outfits.id, id))
   await supprimerImage(existant?.outfit.imageRenduFichier)
+
+  // Plusieurs tenues peuvent être nées de la même image de référence :
+  // on ne l'efface que si plus personne ne s'en sert.
+  const reference = existant?.outfit.referenceImageFichier
+  if (reference) {
+    const encoreUtilisee = await db
+      .select({ id: outfits.id })
+      .from(outfits)
+      .where(eq(outfits.referenceImageFichier, reference))
+      .limit(1)
+    if (encoreUtilisee.length === 0) await supprimerImage(reference)
+  }
 
   revalidatePath('/outfits')
   redirect('/outfits')
@@ -423,6 +447,31 @@ export async function enregistrerPrompt(
 /* ------------------------------------------------------------------ */
 /* Suggestions IA                                                      */
 /* ------------------------------------------------------------------ */
+
+/**
+ * OutfitCopy : reçoit l'image de référence et met la demande en file.
+ * L'image est conservée : elle reste affichée pendant l'analyse, puis
+ * rattachée à la tenue créée.
+ */
+export async function lancerOutfitCopy(
+  _precedent: EtatFormulaire,
+  formData: FormData,
+): Promise<EtatFormulaire> {
+  const fichier = formData.get('fichier')
+  if (!(fichier instanceof File) || fichier.size === 0) {
+    return { erreur: 'Choisis une image de référence.' }
+  }
+
+  let jobId: string
+  try {
+    const nomFichier = await enregistrerFichierEnvoye(fichier)
+    jobId = await enfilerOutfitCopy(nomFichier)
+  } catch (erreur) {
+    return { erreur: messageErreur(erreur) }
+  }
+
+  redirect(`/outfits/copier?job=${jobId}`)
+}
 
 export async function demanderSuggestions(
   _precedent: EtatFormulaire,

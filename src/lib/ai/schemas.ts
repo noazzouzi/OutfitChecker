@@ -94,6 +94,40 @@ export const schemaSuggestions = z.object({
     .default([]),
 })
 
+const texteNonVide = z.string().trim().catch('')
+
+export const schemaOutfitCopy = z.object({
+  reference: z
+    .object({
+      resume: texteNonVide,
+      pieces: z
+        .array(
+          z.object({
+            categorie: texteNonVide,
+            description: texteNonVide,
+            couleur: texteLibre,
+            matiere: texteLibre,
+          }),
+        )
+        .default([]),
+    })
+    .default({ resume: '', pieces: [] }),
+  propositions: z
+    .array(
+      z.object({
+        nom: z.string().trim().min(1).catch('Tenue proposée'),
+        pieces: z.preprocess(
+          (valeur) => (Array.isArray(valeur) ? valeur : []),
+          z.array(z.coerce.number().int()),
+        ),
+        // Une proximité aberrante ne doit pas faire échouer toute l'analyse.
+        proximite: z.coerce.number().catch(0).transform((v) => Math.min(100, Math.max(0, v))),
+        justification: texteNonVide,
+      }),
+    )
+    .default([]),
+})
+
 /**
  * Isole l'objet JSON dans la réponse du modèle. Même en demandant « du JSON et
  * rien d'autre », un bloc ```json ou une phrase d'introduction arrivent.

@@ -316,6 +316,12 @@ tu peux les retoucher, régénérer, comparer les deux générateurs sur le mêm
 3. L'app envoie cette décomposition **+ ta garde-robe résumée** à l'IA, qui
    propose 2-3 combinaisons réelles classées par proximité, chacune justifiée
    (« ce pull beige reprend le camaïeu neutre et la coupe ample »).
+
+   > **Écart au plan, assumé à l'implémentation** : les étapes 2 et 3 se font
+   > dans un seul appel. Le modèle choisit les pièces en regardant l'image, et
+   > non un résumé qu'il aurait lui-même produit — il ne perd donc rien en
+   > route. La décomposition reste affichée à l'écran, et le quota consommé est
+   > divisé par deux.
 4. Chaque proposition est convertible en outfit enregistré, donc en prompts de
    génération d'image (4.5).
 
@@ -347,7 +353,7 @@ variantes de prompt, export du pack ZIP numéroté, réimport du rendu.
 **Critère de sortie** : un outfit produit deux prompts directement exploitables
 dans ChatGPT et Gemini.
 
-### Lot 4 — OutfitCopy
+### Lot 4 — OutfitCopy — ✅ livré
 
 Upload de référence, analyse, matching, conversion en outfit.
 

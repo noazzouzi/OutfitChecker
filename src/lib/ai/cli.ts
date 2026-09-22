@@ -1,6 +1,11 @@
 import { spawn } from 'node:child_process'
-import { extraireJson, schemaAnalyseVetement, schemaSuggestions } from './schemas'
-import { promptAnalyseVetement, promptSuggestionOutfits } from './prompts'
+import {
+  extraireJson,
+  schemaAnalyseVetement,
+  schemaOutfitCopy,
+  schemaSuggestions,
+} from './schemas'
+import { promptAnalyseVetement, promptOutfitCopy, promptSuggestionOutfits } from './prompts'
 import {
   ErreurQuotaIA,
   type AttributsVetement,
@@ -9,6 +14,7 @@ import {
   type FournisseurIA,
   type OutfitSuggere,
   type PieceResumee,
+  type ResultatOutfitCopy,
 } from './types'
 
 /** Binaire du CLI. Surchargeable si `claude` n'est pas dans le PATH du worker. */
@@ -197,5 +203,37 @@ export class AdaptateurCli implements FournisseurIA {
         // Une « tenue » d'une seule pièce n'en est pas une.
         .filter((proposition) => proposition.vetementIds.length >= 2)
     )
+  }
+
+  async copierTenue(
+    cheminImage: string,
+    garderobe: PieceResumee[],
+  ): Promise<ResultatOutfitCopy> {
+    const texte = await executerCli(
+      promptOutfitCopy(cheminImage, garderobe),
+      this.dossierTravail,
+    )
+
+    const analyse = schemaOutfitCopy.safeParse(extraireJson(texte))
+    if (!analyse.success) {
+      throw new Error(`Analyse de référence invalide — ${analyse.error.issues[0]?.message ?? ''}`)
+    }
+
+    return {
+      reference: analyse.data.reference,
+      propositions: analyse.data.propositions
+        .map((proposition) => ({
+          nom: proposition.nom,
+          justification: proposition.justification,
+          proximite: proposition.proximite,
+          // Mêmes précautions que pour les suggestions : un numéro hors
+          // bornes ou répété est écarté plutôt que cru sur parole.
+          vetementIds: Array.from(new Set(proposition.pieces))
+            .filter((numero) => numero >= 1 && numero <= garderobe.length)
+            .map((numero) => garderobe[numero - 1].id),
+        }))
+        .filter((proposition) => proposition.vetementIds.length >= 2)
+        .sort((a, b) => b.proximite - a.proximite),
+    }
   }
 }

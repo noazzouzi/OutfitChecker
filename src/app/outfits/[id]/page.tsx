@@ -46,7 +46,11 @@ export default async function PageOutfit({ params }: { params: Promise<{ id: str
               `${pieces.length} pièce${pieces.length > 1 ? 's' : ''}`,
               outfit.occasion,
               outfit.saison,
-              outfit.source === 'suggestion_ia' ? 'proposée par l’IA' : null,
+              outfit.source === 'suggestion_ia'
+                ? 'proposée par l’IA'
+                : outfit.source === 'outfitcopy'
+                  ? 'issue d’OutfitCopy'
+                  : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -144,6 +148,23 @@ export default async function PageOutfit({ params }: { params: Promise<{ id: str
               </p>
             )}
           </div>
+
+          {outfit.referenceImageFichier && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold">Référence OutfitCopy</h2>
+              <div className="flex aspect-3/4 items-center justify-center overflow-hidden rounded-lg border border-bordure bg-surface">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={urlImage(outfit.referenceImageFichier)!}
+                  alt=""
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <p className="text-xs text-texte-doux">
+                L&apos;image dont cette tenue s&apos;inspire.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <h2 className="text-sm font-semibold">Rendu</h2>

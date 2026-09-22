@@ -4,7 +4,7 @@ Application web personnelle de garde-robe et de composition de tenues.
 Elle tourne **entièrement en local**, sur `localhost`, sans service hébergé.
 
 Le plan complet du MVP est dans [`docs/PLAN.md`](docs/PLAN.md).
-Ce dépôt en est au **lot 3 — Outfits et visualisation**.
+Les quatre lots du MVP sont livrés.
 
 ---
 
@@ -181,6 +181,24 @@ reste générique et la fiche le signale.
 
 ---
 
+## OutfitCopy
+
+Tu donnes la photo de quelqu'un dont la tenue t'inspire — personne réelle ou
+personnage. L'IA décrit ce qu'elle porte, puis cherche dans **ta** garde-robe
+les combinaisons qui s'en approchent, classées par proximité estimée et
+justifiées une par une. Chaque proposition se convertit en tenue, avec ses deux
+prompts de génération ; l'image de référence reste attachée à la tenue créée.
+
+La décomposition et la recherche de correspondances se font dans **un seul
+appel**, là où le plan en prévoyait deux. Le modèle choisit les pièces en ayant
+l'image sous les yeux, ce qu'un résumé textuel intermédiaire lui retirerait —
+et ça consomme moitié moins de quota.
+
+La note de proximité est une **estimation du modèle**, pas une mesure. Elle sert
+à classer, pas à quantifier.
+
+---
+
 ## Ce que fait le lot 1
 
 - Ajouter un vêtement **depuis une photo** ou **depuis l'URL d'une fiche produit**
@@ -226,7 +244,7 @@ src/
 ├── app/
 │   ├── api/images/[fichier]/   sert les images depuis ./data/
 │   ├── vetements/              ajout, fiche, modification
-│   ├── outfits/                liste, compositeur, fiche, suggestions
+│   ├── outfits/                liste, compositeur, fiche, suggestions, OutfitCopy
 │   ├── profil/
 │   └── page.tsx                garde-robe
 ├── components/                 formulaires, grille, détourage, statuts, prompts

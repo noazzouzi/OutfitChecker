@@ -18,6 +18,7 @@ import { jobsIa, vetements } from '@/lib/db/schema'
 import {
   prochainJob,
   type PayloadAnalyse,
+  type PayloadOutfitCopy,
   type PayloadSuggestion,
   type ResultatSuggestion,
 } from '@/lib/jobs'
@@ -142,34 +143,57 @@ async function traiterAnalyse(payload: PayloadAnalyse) {
 }
 
 async function traiterSuggestion(payload: PayloadSuggestion): Promise<ResultatSuggestion> {
-  const garderobe = await db.select().from(vetements)
+  const garderobe = await garderobeResumee()
   if (garderobe.length < 2) {
     throw new ErreurDefinitive(
       'Il faut au moins deux vêtements dans la garde-robe pour composer une tenue.',
     )
   }
 
-  const propositions = await ia.suggererOutfits(
-    garderobe.map((v) => ({
-      id: v.id,
-      nom: v.nom,
-      categorie: v.categorie,
-      sousCategorie: v.sousCategorie,
-      couleurPrincipale: v.couleurPrincipale,
-      matiere: v.matiere,
-      motif: v.motif,
-      styles: v.styles ?? [],
-      occasions: v.occasions ?? [],
-      saisons: v.saisons ?? [],
-    })),
-    payload,
-  )
+  const propositions = await ia.suggererOutfits(garderobe, payload)
 
   if (propositions.length === 0) {
     throw new Error("Le modèle n'a proposé aucune tenue exploitable.")
   }
 
   return { propositions }
+}
+
+/** Résumé de la garde-robe soumis au modèle, en texte et non en images. */
+async function garderobeResumee() {
+  const tous = await db.select().from(vetements)
+  return tous.map((v) => ({
+    id: v.id,
+    nom: v.nom,
+    categorie: v.categorie,
+    sousCategorie: v.sousCategorie,
+    couleurPrincipale: v.couleurPrincipale,
+    matiere: v.matiere,
+    motif: v.motif,
+    styles: v.styles ?? [],
+    occasions: v.occasions ?? [],
+    saisons: v.saisons ?? [],
+  }))
+}
+
+async function traiterOutfitCopy(payload: PayloadOutfitCopy) {
+  const chemin = cheminImage(payload.referenceImageFichier)
+  if (!fs.existsSync(chemin)) {
+    throw new ErreurDefinitive("L'image de référence a disparu du disque.")
+  }
+
+  const garderobe = await garderobeResumee()
+  if (garderobe.length < 2) {
+    throw new ErreurDefinitive(
+      'Il faut au moins deux vêtements dans la garde-robe pour reproduire une tenue.',
+    )
+  }
+
+  const resultat = await ia.copierTenue(chemin, garderobe)
+  if (resultat.propositions.length === 0) {
+    throw new Error("Aucune combinaison exploitable n'a pu être formée.")
+  }
+  return resultat
 }
 
 async function traiterUnJob(): Promise<boolean> {
@@ -189,9 +213,11 @@ async function traiterUnJob(): Promise<boolean> {
         ? await traiterAnalyse(job.payload as PayloadAnalyse)
         : job.type === 'suggestion_outfit'
           ? await traiterSuggestion(job.payload as PayloadSuggestion)
-          : (() => {
-              throw new ErreurDefinitive(`Type de job inconnu : ${job.type}`)
-            })()
+          : job.type === 'outfitcopy'
+            ? await traiterOutfitCopy(job.payload as PayloadOutfitCopy)
+            : (() => {
+                throw new ErreurDefinitive(`Type de job inconnu : ${job.type}`)
+              })()
 
     await db
       .update(jobsIa)

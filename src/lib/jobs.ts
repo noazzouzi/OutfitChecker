@@ -3,7 +3,7 @@ import { and, asc, eq, lte, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { jobsIa, vetements } from '@/lib/db/schema'
 
-import type { ContrainteOutfit, OutfitSuggere } from '@/lib/ai/types'
+import type { ContrainteOutfit, OutfitSuggere, ResultatOutfitCopy } from '@/lib/ai/types'
 
 export type PayloadAnalyse = {
   vetementId: string
@@ -79,6 +79,24 @@ export async function enfilerSuggestion(contrainte: ContrainteOutfit): Promise<s
     createdAt: Date.now(),
     type: 'suggestion_outfit',
     payload: contrainte satisfies PayloadSuggestion,
+    statut: 'en_attente',
+    disponibleA: 0,
+  })
+  return id
+}
+
+export type PayloadOutfitCopy = { referenceImageFichier: string }
+
+export type { ResultatOutfitCopy }
+
+/** OutfitCopy : chaque image soumise est une demande distincte. */
+export async function enfilerOutfitCopy(referenceImageFichier: string): Promise<string> {
+  const id = randomUUID()
+  await db.insert(jobsIa).values({
+    id,
+    createdAt: Date.now(),
+    type: 'outfitcopy',
+    payload: { referenceImageFichier } satisfies PayloadOutfitCopy,
     statut: 'en_attente',
     disponibleA: 0,
   })
