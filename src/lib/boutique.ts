@@ -62,8 +62,8 @@ export async function lireFicheProduit(url: string): Promise<FicheProduit> {
 
   // La lecture directe n'a rien donné : on passe par le navigateur.
   try {
-    const html = await recupererHtmlAvecNavigateur(cible.toString())
-    const parNavigateur = extraireFiche(html, cible, 'navigateur')
+    const { html, imagesCandidates } = await recupererHtmlAvecNavigateur(cible.toString())
+    const parNavigateur = extraireFiche(html, cible, 'navigateur', imagesCandidates)
 
     // On garde la lecture la plus fournie des deux.
     if (!estIncomplete(parNavigateur)) return parNavigateur
@@ -116,23 +116,38 @@ async function recupererHtmlDirect(cible: URL): Promise<string> {
   return reponse.text()
 }
 
+/**
+ * Titres que renvoient les pages d'erreur et de refus. Sans ce garde-fou, un
+ * « Access Denied » finirait comme nom de vêtement, et l'import passerait pour
+ * un succès.
+ */
+const TITRES_NON_PRODUIT =
+  /^\s*(access denied|403|forbidden|error|not found|404|page introuvable|service unavailable)/i
+
 function extraireFiche(
   html: string,
   cible: URL,
   lecture: 'directe' | 'navigateur',
+  imagesCandidates: string[] = [],
 ): FicheProduit {
   const $ = cheerio.load(html)
 
   const produit = extraireJsonLd($)
   const og = extraireOpenGraph($, cible)
 
+  const titre = texte($('title').text())
+  const titreUtilisable = titre && !TITRES_NON_PRODUIT.test(titre) ? titre : null
+
   // Le JSON-LD est plus riche, mais on complète ses trous avec l'Open Graph.
   return {
-    nom: produit?.nom ?? og.nom ?? texte($('title').text()),
+    nom: produit?.nom ?? og.nom ?? titreUtilisable,
     marque: produit?.marque ?? og.marque ?? null,
     prix: produit?.prix ?? og.prix ?? null,
     devise: produit?.devise ?? og.devise ?? null,
-    imageUrl: absolutiser(produit?.imageUrl ?? og.imageUrl, cible),
+    // Dernier recours : la plus grande image réellement affichée. Certaines
+    // fiches n'exposent aucune image dans leurs métadonnées.
+    imageUrl:
+      absolutiser(produit?.imageUrl ?? og.imageUrl, cible) ?? imagesCandidates[0] ?? null,
     boutique: og.boutique ?? cible.hostname.replace(/^www\./, ''),
     description: produit?.description ?? og.description ?? null,
     source: produit ? 'json-ld' : og.nom || og.imageUrl ? 'open-graph' : 'partiel',

@@ -13,8 +13,23 @@ const APPARENCE: Record<StatutAnalyse, { libelle: string; classe: string }> = {
   echec: { libelle: 'Analyse échouée', classe: 'border-red-300 text-red-700 dark:text-red-400' },
 }
 
-export function BadgeStatut({ statut }: { statut: StatutAnalyse }) {
-  const { libelle, classe } = APPARENCE[statut]
+/**
+ * Sans photo, il n'y a rien à analyser : aucune tâche n'est créée et le statut
+ * resterait « en attente » indéfiniment. Mieux vaut dire pourquoi.
+ */
+const SANS_PHOTO = {
+  libelle: 'Pas de photo à analyser',
+  classe: 'border-bordure text-texte-doux',
+}
+
+export function BadgeStatut({
+  statut,
+  sansPhoto = false,
+}: {
+  statut: StatutAnalyse
+  sansPhoto?: boolean
+}) {
+  const { libelle, classe } = sansPhoto ? SANS_PHOTO : APPARENCE[statut]
   return (
     <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${classe}`}>
       {libelle}
@@ -23,7 +38,22 @@ export function BadgeStatut({ statut }: { statut: StatutAnalyse }) {
 }
 
 /** Pastille compacte pour les vignettes de la grille. */
-export function PastilleStatut({ statut }: { statut: StatutAnalyse }) {
+export function PastilleStatut({
+  statut,
+  sansPhoto = false,
+}: {
+  statut: StatutAnalyse
+  sansPhoto?: boolean
+}) {
+  if (sansPhoto) {
+    return (
+      <span
+        title={SANS_PHOTO.libelle}
+        aria-label={SANS_PHOTO.libelle}
+        className="block h-2 w-2 shrink-0 rounded-full bg-stone-400"
+      />
+    )
+  }
   if (statut === 'ok') return null
 
   const couleurs: Record<Exclude<StatutAnalyse, 'ok'>, string> = {

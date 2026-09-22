@@ -183,10 +183,17 @@ export function FormulaireVetement({
         </section>
 
         <ZoneTexte
+          nom="descriptionBoutique"
+          libelle="Description de la boutique"
+          defaut={valeurs.descriptionBoutique}
+          aide="Reprise de la fiche produit, ou recopiée de l'étiquette. L'IA s'en sert comme référence pour la composition, la coupe et les finitions — ce qu'une photo rend mal."
+        />
+
+        <ZoneTexte
           nom="descriptionPrompt"
           libelle="Description pour génération d'image"
           defaut={valeurs.descriptionPrompt}
-          aide="Phrase visuelle dense, destinée à un générateur d'image. L'IA la rédigera automatiquement au lot 2."
+          aide="Phrase visuelle dense, destinée à un générateur d'image. L'IA la rédige automatiquement à l'analyse."
         />
 
         {etat?.erreur && (

@@ -43,7 +43,7 @@ export default async function PageVetement({ params }: { params: Promise<{ id: s
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{vetement.nom}</h1>
-          <BadgeStatut statut={vetement.statutAnalyse} />
+          <BadgeStatut statut={vetement.statutAnalyse} sansPhoto={!vetement.imageFichier} />
         </div>
         <div className="flex items-center gap-2">
           <Link className="bouton-secondaire" href={`/vetements/${vetement.id}/modifier`}>

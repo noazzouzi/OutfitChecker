@@ -234,7 +234,10 @@ export function GrilleVetements({ vetements }: { vetements: Vetement[] }) {
                 <div className="space-y-0.5 p-3">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">{vetement.nom}</p>
-                    <PastilleStatut statut={vetement.statutAnalyse} />
+                    <PastilleStatut
+                      statut={vetement.statutAnalyse}
+                      sansPhoto={!vetement.imageFichier}
+                    />
                   </div>
                   <p className="truncate text-xs text-texte-doux">
                     {[LIBELLES_CATEGORIE[vetement.categorie], vetement.marque]

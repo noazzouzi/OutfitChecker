@@ -64,11 +64,22 @@ export class NavigateurIntrouvable extends Error {
   }
 }
 
+export type PageRendue = {
+  html: string
+  /**
+   * Les plus grandes images réellement affichées, de la plus grande à la plus
+   * petite. Filet de sécurité : certaines fiches produit n'ont ni `og:image`
+   * ni champ `image` dans leur JSON-LD, alors que la photo est bien là.
+   * Seul le navigateur connaît les dimensions rendues.
+   */
+  imagesCandidates: string[]
+}
+
 /**
- * Charge une page dans un vrai navigateur et renvoie le HTML une fois le
- * contenu réellement présent.
+ * Charge une page dans un vrai navigateur et renvoie son contenu une fois
+ * réellement présent.
  */
-export async function recupererHtmlAvecNavigateur(url: string): Promise<string> {
+export async function recupererHtmlAvecNavigateur(url: string): Promise<PageRendue> {
   const executable = trouverNavigateur()
   if (!executable) throw new NavigateurIntrouvable()
 
@@ -112,7 +123,39 @@ export async function recupererHtmlAvecNavigateur(url: string): Promise<string> 
       // l'extraction dira si c'est exploitable.
       .catch(() => {})
 
-    return await page.content()
+    /*
+     * Les photos produit sont chargées en différé. Les métadonnées, elles,
+     * sont là dès le rendu : sans cette seconde attente, on relève les images
+     * alors que leur `naturalWidth` vaut encore 0 et aucune ne passe le filtre
+     * de taille.
+     */
+    await page
+      .waitForFunction(
+        () => [...document.images].some((image) => image.naturalWidth >= 400),
+        undefined,
+        { timeout: 12_000, polling: 500 },
+      )
+      .catch(() => {})
+
+    const imagesCandidates = await page.evaluate(() =>
+      [...document.querySelectorAll('img')]
+        .map((image) => ({
+          src: image.currentSrc || image.src,
+          aire: image.naturalWidth * image.naturalHeight,
+        }))
+        .filter(
+          (image) =>
+            image.src.startsWith('http') &&
+            // Au moins 400×400 : en dessous, c'est une vignette ou un pictogramme.
+            image.aire >= 160_000 &&
+            !/logo|icon|sprite|placeholder|pixel/i.test(image.src),
+        )
+        .sort((a, b) => b.aire - a.aire)
+        .slice(0, 5)
+        .map((image) => image.src),
+    )
+
+    return { html: await page.content(), imagesCandidates }
   } finally {
     await navigateur.close()
   }
