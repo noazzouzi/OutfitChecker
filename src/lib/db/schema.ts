@@ -112,6 +112,12 @@ export const jobsIa = sqliteTable('jobs_ia', {
   payload: text('payload', { mode: 'json' }),
   statut: text('statut').$type<StatutJob>().notNull().default('en_attente'),
   tentatives: integer('tentatives').notNull().default(0),
+  /**
+   * Horodatage avant lequel le job ne doit pas être repris. Sert au backoff
+   * après un échec, et à la mise en pause quand le quota d'abonnement est
+   * atteint — dans ce cas le job reste `en_attente`, il n'échoue pas.
+   */
+  disponibleA: integer('disponible_a').notNull().default(0),
   erreur: text('erreur'),
   resultat: text('resultat', { mode: 'json' }),
 })

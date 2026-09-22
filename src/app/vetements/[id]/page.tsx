@@ -5,6 +5,8 @@ import { urlAffichage, urlImage } from '@/lib/images'
 import { LIBELLES_CATEGORIE } from '@/lib/constantes'
 import { BoutonDetourage } from '@/components/BoutonDetourage'
 import { BoutonSupprimer } from '@/components/BoutonSupprimer'
+import { BoutonAnalyse } from '@/components/BoutonAnalyse'
+import { BadgeStatut } from '@/components/BadgeStatut'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +40,10 @@ export default async function PageVetement({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">{vetement.nom}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">{vetement.nom}</h1>
+          <BadgeStatut statut={vetement.statutAnalyse} />
+        </div>
         <div className="flex items-center gap-2">
           <Link className="bouton-secondaire" href={`/vetements/${vetement.id}/modifier`}>
             Modifier
@@ -59,11 +64,18 @@ export default async function PageVetement({ params }: { params: Promise<{ id: s
           </div>
 
           {originale && (
-            <BoutonDetourage
-              id={vetement.id}
-              urlSource={originale}
-              dejaDetoure={!!vetement.imageDetoureeFichier}
-            />
+            <>
+              <BoutonAnalyse
+                id={vetement.id}
+                statut={vetement.statutAnalyse}
+                dejaAnalyse={!!vetement.descriptionPrompt}
+              />
+              <BoutonDetourage
+                id={vetement.id}
+                urlSource={originale}
+                dejaDetoure={!!vetement.imageDetoureeFichier}
+              />
+            </>
           )}
           {vetement.imageDetoureeFichier && (
             <p className="text-xs text-texte-doux">Photo détourée, prête pour la génération.</p>

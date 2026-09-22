@@ -1,5 +1,5 @@
-import 'server-only'
-
+// Pas de `server-only` ici : ce module est aussi importé par le worker IA
+// (worker/index.ts), qui est un process Node ordinaire, hors du runtime Next.
 import fs from 'node:fs'
 import path from 'node:path'
 import Database from 'better-sqlite3'

@@ -139,7 +139,7 @@ d'autre à modifier dans l'application.
 | Détourage | `@imgly/background-removal` | Tourne dans le navigateur, gratuit, sans quota ni clé |
 | Scraping métadonnées | `cheerio` | ~40 lignes suffisent pour lire OG + JSON-LD |
 | Pack d'images (lot 3) | `jszip` | Un ZIP numéroté, généré côté client |
-| Orchestration dev (lot 2) | `concurrently` | Une commande pour app + worker |
+| Orchestration dev | `concurrently` + `tsx` | Une commande pour app + worker |
 
 > **Une réserve sur le « 100 % local »** : `@imgly/background-removal` télécharge
 > son modèle depuis un CDN au premier détourage, puis le navigateur le met en
@@ -327,7 +327,7 @@ grille, filtres, tri. Fiche de profil. Import URL (scraping + formulaire).
 
 **Critère de sortie** : la garde-robe est saisissable et navigable de bout en bout.
 
-### Lot 2 — Chaîne IA
+### Lot 2 — Chaîne IA — ✅ livré
 
 Adaptateur CLI + worker + table `jobs_ia` + mode WAL. Prompt d'analyse de
 vêtement, validation Zod. Affichage du statut d'analyse et relance manuelle.

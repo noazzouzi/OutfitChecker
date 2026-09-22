@@ -12,6 +12,7 @@ import {
   type Categorie,
 } from '@/lib/constantes'
 import { urlAffichage } from '@/lib/images'
+import { PastilleStatut } from '@/components/BadgeStatut'
 import type { Vetement } from '@/lib/db/schema'
 
 type Tri = 'recent' | 'ancien' | 'nom' | 'marque' | 'prix'
@@ -231,7 +232,10 @@ export function GrilleVetements({ vetements }: { vetements: Vetement[] }) {
                   )}
                 </div>
                 <div className="space-y-0.5 p-3">
-                  <p className="truncate text-sm font-medium">{vetement.nom}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium">{vetement.nom}</p>
+                    <PastilleStatut statut={vetement.statutAnalyse} />
+                  </div>
                   <p className="truncate text-xs text-texte-doux">
                     {[LIBELLES_CATEGORIE[vetement.categorie], vetement.marque]
                       .filter(Boolean)

@@ -1,0 +1,1 @@
+ALTER TABLE `jobs_ia` ADD `disponible_a` integer DEFAULT 0 NOT NULL;

@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { profil, vetements } from '@/lib/db/schema'
 import { obtenirVetement } from '@/lib/requetes'
+import { enfilerAnalyse } from '@/lib/jobs'
 import { lireFicheProduit, type FicheProduit } from '@/lib/boutique'
 import {
   enregistrerFichierEnvoye,
@@ -143,6 +144,9 @@ export async function creerVetement(
       imageFichier,
       statutAnalyse: 'en_attente',
     })
+
+    // Sans photo, il n'y a rien à analyser : inutile de consommer du quota.
+    if (imageFichier) await enfilerAnalyse(id)
   } catch (erreur) {
     return { erreur: messageErreur(erreur) }
   }
@@ -167,6 +171,7 @@ export async function modifierVetement(
     const fichier = formData.get('fichier')
     const valeurs: Record<string, unknown> = { ...analyse.data }
 
+    let photoRemplacee = false
     if (fichier instanceof File && fichier.size > 0) {
       const existant = await obtenirVetement(id)
       valeurs.imageFichier = await enregistrerFichierEnvoye(fichier)
@@ -174,9 +179,14 @@ export async function modifierVetement(
       valeurs.imageDetoureeFichier = null
       await supprimerImage(existant?.imageFichier)
       await supprimerImage(existant?.imageDetoureeFichier)
+      photoRemplacee = true
     }
 
     await db.update(vetements).set(valeurs).where(eq(vetements.id, id))
+
+    // Nouvelle photo = analyse périmée. On ne réécrase pas les champs que
+    // l'utilisateur vient de saisir : seuls les champs vides seront remplis.
+    if (photoRemplacee) await enfilerAnalyse(id)
   } catch (erreur) {
     return { erreur: messageErreur(erreur) }
   }
@@ -210,6 +220,23 @@ export async function enregistrerDetourage(formData: FormData): Promise<void> {
     .where(eq(vetements.id, id))
 
   await supprimerImage(existant?.imageDetoureeFichier)
+
+  revalidatePath('/')
+  revalidatePath(`/vetements/${id}`)
+}
+
+/**
+ * Relance l'analyse d'un vêtement.
+ *
+ * `ecraser = false` ne remplit que les champs vides — c'est le cas courant,
+ * après un échec ou pour compléter une fiche. `ecraser = true` refait l'analyse
+ * complète et remplace les valeurs existantes, y compris saisies à la main.
+ */
+export async function relancerAnalyse(id: string, ecraser = false): Promise<void> {
+  const vetement = await obtenirVetement(id)
+  if (!vetement?.imageFichier) return
+
+  await enfilerAnalyse(id, ecraser)
 
   revalidatePath('/')
   revalidatePath(`/vetements/${id}`)

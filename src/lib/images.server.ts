@@ -1,5 +1,5 @@
-import 'server-only'
-
+// Pas de `server-only` ici : ce module est aussi importé par le worker IA,
+// qui tourne hors du runtime Next.
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'

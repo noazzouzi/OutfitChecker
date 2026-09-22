@@ -4,19 +4,26 @@ Application web personnelle de garde-robe et de composition de tenues.
 Elle tourne **entièrement en local**, sur `localhost`, sans service hébergé.
 
 Le plan complet du MVP est dans [`docs/PLAN.md`](docs/PLAN.md).
-Ce dépôt en est au **lot 1 — Socle**.
+Ce dépôt en est au **lot 2 — Chaîne IA**.
 
 ---
 
 ## Démarrer
 
-Prérequis : **Node.js 20.9+**.
+Prérequis :
+
+- **Node.js 20.9+**
+- le **CLI Claude Code** installé et connecté (`claude`). L'analyse des
+  vêtements passe par lui, donc par ton abonnement — aucune clé API n'est
+  nécessaire. Sans lui, tout le reste de l'application fonctionne : les
+  analyses partent simplement en échec.
 
 ```bash
 npm install
 npm run dev
 ```
 
+`npm run dev` lance **deux processus** : le serveur Next et le worker d'analyse.
 L'application est sur <http://localhost:3000>.
 
 La base et les images sont créées automatiquement au premier démarrage dans
@@ -24,7 +31,8 @@ La base et les images sont créées automatiquement au premier démarrage dans
 
 | Commande | Effet |
 |---|---|
-| `npm run dev` | Serveur de développement |
+| `npm run dev` | Serveur Next **et** worker d'analyse |
+| `npm run worker` | Worker seul (utile pour lire ses logs isolément) |
 | `npm run build` / `npm start` | Build et exécution en production |
 | `npm run lint` | ESLint |
 | `npm run db:generate` | Régénère les migrations après modification de `src/lib/db/schema.ts` |
@@ -44,11 +52,51 @@ data/
 Sauvegarder ce dossier, c'est sauvegarder l'application entière. Il est exclu
 de git.
 
-La base est ouverte en **mode WAL**. Ce n'est pas une optimisation : au lot 2,
-le worker IA écrira dans cette base en même temps que le serveur Next, et sans
-WAL les deux processus se bloqueraient mutuellement.
+La base est ouverte en **mode WAL**. Ce n'est pas une optimisation : le worker
+IA écrit dans cette base en même temps que le serveur Next, et sans WAL les deux
+processus se bloqueraient mutuellement.
 
 Les migrations sont appliquées automatiquement au démarrage.
+
+---
+
+## L'analyse IA
+
+Chaque vêtement ajouté avec une photo est mis en file d'analyse. Un worker
+séparé dépile cette file et appelle le CLI Claude Code, qui lit la photo et
+renvoie les attributs : sous-catégorie, couleurs, matière, coupe, motif,
+styles, occasions, saisons, et une `descriptionPrompt` — une phrase visuelle
+dense qui alimentera les prompts de génération d'image au lot 3.
+
+**Le worker est un process séparé** parce qu'un appel au CLI prend plusieurs
+secondes. Le faire dans une requête HTTP bloquerait l'interface à chaque ajout.
+L'état de la file est visible en haut de la garde-robe.
+
+**L'analyse ne remplit que les champs vides.** Ce que tu as saisi à la main
+fait autorité. Le bouton « Réanalyser en écrasant » force le remplacement quand
+tu le veux vraiment.
+
+**Le quota d'abonnement est traité comme une pause, pas comme une panne.**
+Quand la limite est atteinte, le job reste en attente et repart 15 minutes plus
+tard, sans consommer de tentative. Les vraies erreurs, elles, sont réessayées
+trois fois avec un délai croissant. Les erreurs qu'un nouvel essai ne corrigera
+jamais — photo absente du disque, vêtement supprimé — échouent immédiatement,
+sans appeler le CLI.
+
+### Réglages
+
+| Variable | Effet |
+|---|---|
+| `OUTFITCHECKER_CLAUDE_BIN` | Chemin du binaire `claude` s'il n'est pas dans le `PATH` |
+| `OUTFITCHECKER_MODELE` | Force un modèle (par défaut : celui configuré dans ton CLI) |
+| `OUTFITCHECKER_TIMEOUT_MS` | Délai maximal d'un appel (180 000 par défaut) |
+
+### Changer de fournisseur
+
+Toute l'IA passe par l'interface `FournisseurIA` (`src/lib/ai/types.ts`), avec
+une seule implémentation : `AdaptateurCli`. Passer à une clé API revient à
+écrire une seconde implémentation et à changer la ligne d'export de
+`src/lib/ai/index.ts`. Rien d'autre dans l'application ne connaît le CLI.
 
 ---
 
@@ -65,10 +113,8 @@ Les migrations sont appliquées automatiquement au démarrage.
 - Renseigner la **fiche de profil morphologique** utilisée plus tard dans les
   prompts de génération d'image.
 
-Les attributs détaillés (matière, coupe, motif, styles, occasions…) se
-saisissent à la main pour l'instant. **Au lot 2, l'IA les remplira
-automatiquement** — le champ `statutAnalyse` de chaque vêtement est déjà à
-`en_attente` dans ce but.
+Les attributs détaillés restent saisissables à la main ; le lot 2 les remplit
+automatiquement.
 
 ---
 
@@ -101,15 +147,19 @@ src/
 │   ├── vetements/              ajout, fiche, modification
 │   ├── profil/
 │   └── page.tsx                garde-robe
-├── components/                 formulaires, grille, détourage
+├── components/                 formulaires, grille, détourage, statuts
 └── lib/
+    ├── ai/                     interface, prompt, schéma Zod, adaptateur CLI
     ├── db/                     schéma Drizzle et connexion SQLite
     ├── actions.ts              actions serveur (création, édition, import)
     ├── boutique.ts             lecture des métadonnées de fiche produit
     ├── images.ts               helpers partagés client/serveur
     ├── images.server.ts        écriture et lecture disque
+    ├── jobs.ts                 file d'analyse et état de la file
     ├── requetes.ts             lectures en base
     └── constantes.ts           vocabulaire contrôlé (catégories, styles…)
+worker/
+└── index.ts                    boucle d'analyse, backoff, pause quota
 ```
 
 ### Deux points d'architecture à connaître
@@ -118,6 +168,10 @@ src/
 moment du build ; des images ajoutées à l'exécution s'y comportent différemment
 entre `next dev` et `next start`. Le route handler `/api/images/[fichier]` lit
 le disque à chaque requête, avec un garde-fou contre la traversée de répertoire.
+
+**Le worker n'est pas un module Next.** C'est pourquoi `src/lib/db/index.ts` et
+`src/lib/images.server.ts` ne portent pas la marque `server-only` : ils sont
+partagés avec un process Node ordinaire, où cette marque lève une erreur.
 
 **Les accès disque utilisent des segments littéraux**
 (`path.join(process.cwd(), 'data', 'images', …)`). Turbopack analyse
