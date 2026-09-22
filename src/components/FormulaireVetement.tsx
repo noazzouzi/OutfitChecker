@@ -229,12 +229,17 @@ function ImportUrl({ onImport }: { onImport: (valeurs: Partial<Valeurs>) => void
         urlSource: url.trim(),
         imageFichier,
       })
+      const viaNavigateur =
+        fiche.lecture === 'navigateur'
+          ? ' Cette boutique bloque les requêtes automatiques : la page a été lue dans un navigateur, ce qui prend quelques secondes.'
+          : ''
       setMessage({
         type: 'ok',
         texte:
-          fiche.source === 'json-ld'
+          (fiche.source === 'json-ld'
             ? 'Fiche produit lue. Vérifie les champs avant d’enregistrer.'
-            : "Données limitées (pas de fiche structurée sur cette page). Complète à la main.",
+            : 'Données limitées (pas de fiche structurée sur cette page). Complète à la main.') +
+          viaNavigateur,
       })
     }
     setEnCours(false)
@@ -245,6 +250,8 @@ function ImportUrl({ onImport }: { onImport: (valeurs: Partial<Valeurs>) => void
       <h2 className="text-sm font-semibold">Importer depuis une boutique</h2>
       <p className="mt-1 text-xs text-texte-doux">
         Colle l’URL d’une fiche produit. Les champs sont pré-remplis, à toi de valider.
+        Sur les boutiques protégées (Lefties, Zara…), la lecture passe par un navigateur
+        et demande quelques secondes.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input

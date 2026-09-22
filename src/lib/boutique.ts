@@ -1,6 +1,11 @@
 import 'server-only'
 
 import * as cheerio from 'cheerio'
+import {
+  NavigateurIntrouvable,
+  recupererHtmlAvecNavigateur,
+  ressembleAUnChallenge,
+} from '@/lib/navigateur'
 
 export type FicheProduit = {
   nom: string | null
@@ -12,16 +17,23 @@ export type FicheProduit = {
   description: string | null
   /** D'où viennent les données : utile pour afficher un avertissement honnête. */
   source: 'json-ld' | 'open-graph' | 'partiel'
+  /** Comment la page a été obtenue. */
+  lecture: 'directe' | 'navigateur'
 }
 
 /**
  * Récupère les métadonnées d'une fiche produit.
  *
- * Deux sources, dans cet ordre de fiabilité :
- *   1. JSON-LD `schema.org/Product` — structuré, c'est ce que les e-commerces
- *      publient pour Google. Contient marque et prix.
- *   2. Balises Open Graph — présentes presque partout, mais pauvres
- *      (rarement la marque, parfois le prix).
+ * Deux chemins, dans cet ordre :
+ *
+ *   1. Requête HTTP directe. Instantanée, suffit pour la grande majorité des
+ *      boutiques. On y lit le JSON-LD `schema.org/Product` — structuré, c'est
+ *      ce que les e-commerces publient pour Google — puis, à défaut, les
+ *      balises Open Graph.
+ *   2. Repli navigateur, si la requête directe échoue ou revient vide. Les
+ *      enseignes protégées par un pare-bot (tout Inditex, dont Lefties)
+ *      répondent HTTP 200 avec une page-piège JavaScript sans aucune
+ *      métadonnée : seul un vrai navigateur en vient à bout.
  *
  * Le résultat n'est jamais considéré comme fiable : il pré-remplit un
  * formulaire que l'utilisateur valide.
@@ -32,6 +44,60 @@ export async function lireFicheProduit(url: string): Promise<FicheProduit> {
     throw new Error('Seules les URL http(s) sont acceptées.')
   }
 
+  let fiche: FicheProduit | null = null
+  let echecDirect: Error | null = null
+
+  try {
+    const html = await recupererHtmlDirect(cible)
+    // Une page-piège se reconnaît à ses marqueurs : inutile d'en extraire
+    // quoi que ce soit, elle ne contient pas la fiche produit.
+    if (!ressembleAUnChallenge(html)) {
+      fiche = extraireFiche(html, cible, 'directe')
+    }
+  } catch (erreur) {
+    echecDirect = erreur instanceof Error ? erreur : new Error(String(erreur))
+  }
+
+  if (fiche && !estIncomplete(fiche)) return fiche
+
+  // La lecture directe n'a rien donné : on passe par le navigateur.
+  try {
+    const html = await recupererHtmlAvecNavigateur(cible.toString())
+    const parNavigateur = extraireFiche(html, cible, 'navigateur')
+
+    // On garde la lecture la plus fournie des deux.
+    if (!estIncomplete(parNavigateur)) return parNavigateur
+    if (fiche && !estVide(fiche)) return fiche
+    if (!estVide(parNavigateur)) return parNavigateur
+
+    // Les deux chemins ont échoué : un formulaire vide sans explication
+    // laisserait l'utilisateur dans le noir.
+    throw new Error(
+      `${echecDirect ? `${echecDirect.message} ` : ''}La lecture par navigateur n'a` +
+        " rien donné non plus. Ajoute le vêtement manuellement avec une photo.",
+    )
+  } catch (erreur) {
+    // Pas de navigateur disponible : mieux vaut rendre le peu qu'on a que rien.
+    if (erreur instanceof NavigateurIntrouvable) {
+      if (fiche && !estVide(fiche)) return fiche
+      throw erreur
+    }
+    if (fiche && !estVide(fiche)) return fiche
+    throw erreur
+  }
+}
+
+/** Sans nom ou sans image, le formulaire n'est que partiellement pré-rempli. */
+function estIncomplete(fiche: FicheProduit): boolean {
+  return !fiche.nom || !fiche.imageUrl
+}
+
+/** Rien d'exploitable du tout : autant le dire plutôt qu'ouvrir un formulaire vide. */
+function estVide(fiche: FicheProduit): boolean {
+  return !fiche.nom && !fiche.imageUrl && !fiche.description
+}
+
+async function recupererHtmlDirect(cible: URL): Promise<string> {
   const reponse = await fetch(cible, {
     headers: {
       // Sans User-Agent de navigateur, beaucoup de boutiques renvoient 403.
@@ -45,19 +111,24 @@ export async function lireFicheProduit(url: string): Promise<FicheProduit> {
   })
 
   if (!reponse.ok) {
-    throw new Error(
-      `La boutique a refusé la requête (HTTP ${reponse.status}). Ajoute le vêtement manuellement.`,
-    )
+    throw new Error(`La boutique a refusé la requête (HTTP ${reponse.status}).`)
   }
+  return reponse.text()
+}
 
-  const $ = cheerio.load(await reponse.text())
+function extraireFiche(
+  html: string,
+  cible: URL,
+  lecture: 'directe' | 'navigateur',
+): FicheProduit {
+  const $ = cheerio.load(html)
 
   const produit = extraireJsonLd($)
   const og = extraireOpenGraph($, cible)
 
   // Le JSON-LD est plus riche, mais on complète ses trous avec l'Open Graph.
-  const fiche: FicheProduit = {
-    nom: produit?.nom ?? og.nom ?? $('title').text().trim() ?? null,
+  return {
+    nom: produit?.nom ?? og.nom ?? texte($('title').text()),
     marque: produit?.marque ?? og.marque ?? null,
     prix: produit?.prix ?? og.prix ?? null,
     devise: produit?.devise ?? og.devise ?? null,
@@ -65,12 +136,13 @@ export async function lireFicheProduit(url: string): Promise<FicheProduit> {
     boutique: og.boutique ?? cible.hostname.replace(/^www\./, ''),
     description: produit?.description ?? og.description ?? null,
     source: produit ? 'json-ld' : og.nom || og.imageUrl ? 'open-graph' : 'partiel',
+    lecture,
   }
-
-  return fiche
 }
 
-type Partielle = Omit<FicheProduit, 'source' | 'boutique'> & { boutique?: string | null }
+type Partielle = Omit<FicheProduit, 'source' | 'boutique' | 'lecture'> & {
+  boutique?: string | null
+}
 
 function extraireJsonLd($: cheerio.CheerioAPI): Partielle | null {
   const scripts = $('script[type="application/ld+json"]').toArray()

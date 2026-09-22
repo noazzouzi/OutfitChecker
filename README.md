@@ -60,6 +60,38 @@ Les migrations sont appliquées automatiquement au démarrage.
 
 ---
 
+## Les boutiques protégées
+
+Une partie des enseignes — tout Inditex, dont **Lefties** et Zara — place un
+pare-bot devant son site. Une requête HTTP ordinaire y reçoit un HTTP 200
+trompeur : une page-piège JavaScript, sans Open Graph ni JSON-LD. Le scraper
+voit une page valide et vide.
+
+L'import suit donc deux chemins, dans cet ordre :
+
+1. **Requête directe** — quelques millisecondes, suffit pour la grande majorité
+   des boutiques.
+2. **Repli navigateur** — uniquement si la première échoue ou revient vide. On
+   pilote, en arrière-plan et sans fenêtre, le **Chrome ou Edge déjà installé**
+   sur la machine : un vrai navigateur résout le défi tout seul. Compte environ
+   cinq secondes.
+
+Rien à installer si Chrome est présent aux emplacements habituels. Sinon,
+indique son chemin :
+
+```bash
+OUTFITCHECKER_CHROME="/chemin/vers/chrome" npm run dev
+```
+
+Sans navigateur disponible, l'app le dit explicitement et te renvoie vers
+l'ajout manuel — le parcours n'est jamais bloqué.
+
+> Contourner une protection anti-bot sort de ce que la boutique prévoit. À
+> l'échelle d'un import manuel de temps en temps, c'est sans conséquence ; ce
+> mécanisme n'a pas vocation à être mis en boucle.
+
+---
+
 ## L'analyse IA
 
 Chaque vêtement ajouté avec une photo est mis en file d'analyse. Un worker
@@ -90,6 +122,8 @@ sans appeler le CLI.
 | `OUTFITCHECKER_CLAUDE_BIN` | Chemin du binaire `claude` s'il n'est pas dans le `PATH` |
 | `OUTFITCHECKER_MODELE` | Force un modèle (par défaut : celui configuré dans ton CLI) |
 | `OUTFITCHECKER_TIMEOUT_MS` | Délai maximal d'un appel (180 000 par défaut) |
+| `OUTFITCHECKER_CHROME` | Chemin du navigateur pour les boutiques protégées, s'il n'est pas à un emplacement usuel |
+| `OUTFITCHECKER_CHROME_ARGS` | Arguments supplémentaires passés au navigateur (rarement utile) |
 
 ### Changer de fournisseur
 
@@ -190,6 +224,7 @@ src/
     ├── db/                     schéma Drizzle et connexion SQLite
     ├── actions.ts              actions serveur (création, édition, import)
     ├── boutique.ts             lecture des métadonnées de fiche produit
+    ├── navigateur.ts           repli navigateur pour les boutiques protégées
     ├── images.ts               helpers partagés client/serveur
     ├── images.server.ts        écriture et lecture disque
     ├── jobs.ts                 file d'analyse et état de la file

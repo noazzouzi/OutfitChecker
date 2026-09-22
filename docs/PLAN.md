@@ -224,9 +224,13 @@ Table de liaison : `outfit_id`, `vetement_id`, `role`, **`ordre`**.
 3. Un formulaire pré-rempli s'affiche. **Tu valides ou corriges.**
 4. L'image est téléchargée dans `./data/images/`, un job `analyse_vetement` est créé.
 
-> **Repli assumé** : certaines boutiques bloquent les requêtes automatisées
-> (Cloudflare, anti-bot). Dans ce cas le formulaire s'ouvre vide avec un champ
-> d'upload de photo — le parcours n'est jamais bloqué.
+> **Repli navigateur** (ajouté après confrontation au réel) : tout Inditex —
+> dont Lefties — sert une page-piège JavaScript à toute requête non-navigateur,
+> sans aucune métadonnée. La lecture directe ne peut rien y faire. Quand elle
+> échoue ou revient vide, l'app pilote donc le Chrome déjà installé sur la
+> machine, qui résout le défi tout seul (~5 s). Sans navigateur disponible, le
+> formulaire s'ouvre vide avec un champ d'upload — le parcours n'est jamais
+> bloqué.
 
 ### 4.2 Analyse IA d'un vêtement
 
@@ -356,7 +360,7 @@ Upload de référence, analyse, matching, conversion en outfit.
 | Risque | Gravité | Parade |
 |---|---|---|
 | Calibrage des prompts de génération | **Élevée** | C'est le cœur du produit. Itérer tôt et sur du réel dès le lot 3, sur les deux générateurs en parallèle |
-| Boutiques protégées contre le scraping | Moyenne | Repli systématique sur la saisie manuelle + upload photo |
+| Boutiques protégées contre le scraping | Traitée | Repli sur le navigateur local installé ; saisie manuelle en dernier recours |
 | Quota d'abonnement atteint en lot | Moyenne | File séquentielle, pause et reprise, état visible dans l'UI |
 | Verrou SQLite entre app et worker | Moyenne | Mode WAL activé dès l'ouverture de la base |
 | JSON malformé renvoyé par le LLM | Faible | Validation Zod + une relance automatique, puis échec explicite |
