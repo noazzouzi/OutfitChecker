@@ -21,6 +21,8 @@ export type ContexteVetement = {
   nom: string
   categorie: string
   marque: string | null
+  /** Description reprise de la fiche produit du marchand, si disponible. */
+  descriptionBoutique: string | null
 }
 
 /** Une pièce de la garde-robe, résumée pour être soumise au modèle. */

@@ -1,0 +1,1 @@
+ALTER TABLE `vetements` ADD `description_boutique` text;

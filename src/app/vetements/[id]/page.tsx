@@ -113,6 +113,15 @@ export default async function PageVetement({ params }: { params: Promise<{ id: s
               </div>
             ))}
 
+          {vetement.descriptionBoutique && (
+            <div>
+              <p className="etiquette">Description de la boutique</p>
+              <p className="rounded-md border border-bordure bg-surface p-3 text-sm">
+                {vetement.descriptionBoutique}
+              </p>
+            </div>
+          )}
+
           {vetement.descriptionPrompt && (
             <div>
               <p className="etiquette">Description pour génération d&apos;image</p>

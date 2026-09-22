@@ -104,6 +104,17 @@ dense qui alimentera les prompts de génération d'image au lot 3.
 secondes. Le faire dans une requête HTTP bloquerait l'interface à chaque ajout.
 L'état de la file est visible en haut de la garde-robe.
 
+**La description de la boutique sert de référence.** Quand un vêtement est
+importé depuis une fiche produit, sa description est conservée et passée à
+l'analyse. Elle fait autorité sur ce qu'une photo rend mal — composition
+textile, coupe annoncée, finitions — tandis que l'image tranche sur tout ce qui
+est visible. Le champ est éditable : pour un vêtement ajouté à la main, y
+recopier l'étiquette produit le même effet.
+
+Ce texte vient d'une page web tierce. Il est transmis au modèle entre balises et
+présenté explicitement comme de la donnée, jamais comme une consigne — une page
+marchande ne doit pas pouvoir piloter l'analyse.
+
 **L'analyse ne remplit que les champs vides.** Ce que tu as saisi à la main
 fait autorité. Le bouton « Réanalyser en écrasant » force le remplacement quand
 tu le veux vraiment.

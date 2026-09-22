@@ -42,6 +42,12 @@ export const vetements = sqliteTable('vetements', {
   prix: real('prix'),
   urlSource: text('url_source'),
   boutique: text('boutique'),
+  /**
+   * Description reprise de la fiche produit. Écrite par le marchand, donc
+   * fiable sur la composition et la coupe — ce que l'image rend mal. Elle est
+   * passée en contexte à l'analyse IA.
+   */
+  descriptionBoutique: text('description_boutique'),
 
   // Renseignés par l'IA au lot 2 — laissés vides jusque-là
   sousCategorie: text('sous_categorie'),

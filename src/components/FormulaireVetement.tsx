@@ -24,6 +24,7 @@ type Valeurs = {
   coupe: string
   motif: string
   descriptionPrompt: string
+  descriptionBoutique: string
   saisons: string[]
   styles: string[]
   occasions: string[]
@@ -44,6 +45,7 @@ const VALEURS_VIDES: Valeurs = {
   coupe: '',
   motif: '',
   descriptionPrompt: '',
+  descriptionBoutique: '',
   saisons: [],
   styles: [],
   occasions: [],
@@ -65,6 +67,7 @@ function depuisVetement(vetement: Vetement): Valeurs {
     coupe: vetement.coupe ?? '',
     motif: vetement.motif ?? '',
     descriptionPrompt: vetement.descriptionPrompt ?? '',
+    descriptionBoutique: vetement.descriptionBoutique ?? '',
     saisons: vetement.saisons ?? [],
     styles: vetement.styles ?? [],
     occasions: vetement.occasions ?? [],
@@ -226,6 +229,7 @@ function ImportUrl({ onImport }: { onImport: (valeurs: Partial<Valeurs>) => void
         marque: fiche.marque ?? '',
         prix: fiche.prix != null ? String(fiche.prix) : '',
         boutique: fiche.boutique ?? '',
+        descriptionBoutique: fiche.description ?? '',
         urlSource: url.trim(),
         imageFichier,
       })

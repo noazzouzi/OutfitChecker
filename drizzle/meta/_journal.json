@@ -15,6 +15,13 @@
       "when": 1790085262825,
       "tag": "0001_loose_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790090737202,
+      "tag": "0002_jazzy_tempest",
+      "breakpoints": true
     }
   ]
 }

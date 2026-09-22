@@ -103,6 +103,7 @@ async function traiterAnalyse(payload: PayloadAnalyse) {
     nom: vetement.nom,
     categorie: vetement.categorie,
     marque: vetement.marque,
+    descriptionBoutique: vetement.descriptionBoutique,
   })
 
   const { ecraser } = payload
