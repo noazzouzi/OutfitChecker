@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --fond: #fafaf9;
+  --surface: #ffffff;
+  --bordure: #e7e5e4;
+  --texte: #1c1917;
+  --texte-doux: #78716c;
+  --accent: #1c1917;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #0c0a09;
+    --surface: #1c1917;
+    --bordure: #292524;
+    --texte: #fafaf9;
+    --texte-doux: #a8a29e;
+    --accent: #fafaf9;
+  }
+}
+
+@theme inline {
+  --color-fond: var(--fond);
+  --color-surface: var(--surface);
+  --color-bordure: var(--bordure);
+  --color-texte: var(--texte);
+  --color-texte-doux: var(--texte-doux);
+  --color-accent: var(--accent);
+}
+
+body {
+  background: var(--fond);
+  color: var(--texte);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+/* Champs de formulaire : même apparence partout, sans dépendre d'une librairie. */
+.champ {
+  @apply w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm
+         outline-none focus:border-texte-doux focus:ring-1 focus:ring-texte-doux;
+}
+
+.etiquette {
+  @apply mb-1 block text-xs font-medium uppercase tracking-wide text-texte-doux;
+}
+
+.bouton {
+  @apply inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2
+         text-sm font-medium text-fond transition hover:opacity-85
+         disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.bouton-secondaire {
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-bordure
+         bg-surface px-4 py-2 text-sm font-medium text-texte transition
+         hover:border-texte-doux disabled:cursor-not-allowed disabled:opacity-50;
+}

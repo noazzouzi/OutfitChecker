@@ -134,12 +134,18 @@ d'autre à modifier dans l'application.
 | Besoin | Librairie | Pourquoi |
 |---|---|---|
 | Base de données | `better-sqlite3` + `drizzle-orm` | Zéro installation, zéro serveur, un seul fichier |
-| Composants UI | `shadcn/ui` + Tailwind | Composants prêts, copiés dans le repo, modifiables |
-| Validation des sorties IA | `zod` | Un LLM peut renvoyer du JSON malformé : on valide systématiquement |
+| Composants UI | Tailwind seul | `shadcn/ui` a été écarté : l'interface du lot 1 (grille, formulaires) tient en quelques composants, et une CLI de génération en plus n'apportait rien |
+| Validation | `zod` | Valide les formulaires, et au lot 2 les sorties JSON du LLM |
 | Détourage | `@imgly/background-removal` | Tourne dans le navigateur, gratuit, sans quota ni clé |
 | Scraping métadonnées | `cheerio` | ~40 lignes suffisent pour lire OG + JSON-LD |
-| Pack d'images | `jszip` | Un ZIP numéroté, généré côté client |
-| Orchestration dev | `concurrently` | Une commande pour app + worker |
+| Pack d'images (lot 3) | `jszip` | Un ZIP numéroté, généré côté client |
+| Orchestration dev (lot 2) | `concurrently` | Une commande pour app + worker |
+
+> **Une réserve sur le « 100 % local »** : `@imgly/background-removal` télécharge
+> son modèle depuis un CDN au premier détourage, puis le navigateur le met en
+> cache. C'est le seul appel réseau de l'app en dehors du scraping. Le paquet
+> `@imgly/background-removal-data` (~220 Mo) permet de le servir localement —
+> procédure dans le README, non activée par défaut vu le poids.
 
 ---
 
@@ -313,7 +319,7 @@ tu peux les retoucher, régénérer, comparer les deux générateurs sur le mêm
 
 ## 5. Séquençage
 
-### Lot 1 — Socle (aucune IA)
+### Lot 1 — Socle (aucune IA) — ✅ livré
 
 Projet Next.js, SQLite + Drizzle, dossier `./data/`, route handler d'images.
 Ajout manuel de vêtement avec photo. Détourage navigateur. Fiche vêtement,
