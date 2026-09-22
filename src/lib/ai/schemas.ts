@@ -72,6 +72,29 @@ export const schemaAnalyseVetement = z.object({
 })
 
 /**
+ * Propositions d'outfits.
+ *
+ * Le modèle ne manipule pas les uuid mais des numéros de ligne : c'est plus
+ * économe en jetons et beaucoup moins sujet aux erreurs de recopie. La
+ * conversion numéro → identifiant, et le rejet des numéros hors bornes, se
+ * font côté appelant.
+ */
+export const schemaSuggestions = z.object({
+  propositions: z
+    .array(
+      z.object({
+        nom: z.string().trim().min(1).catch('Tenue sans nom'),
+        pieces: z.preprocess(
+          (valeur) => (Array.isArray(valeur) ? valeur : []),
+          z.array(z.coerce.number().int()),
+        ),
+        justification: z.string().trim().catch(''),
+      }),
+    )
+    .default([]),
+})
+
+/**
  * Isole l'objet JSON dans la réponse du modèle. Même en demandant « du JSON et
  * rien d'autre », un bloc ```json ou une phrase d'introduction arrivent.
  */

@@ -23,6 +23,33 @@ export type ContexteVetement = {
   marque: string | null
 }
 
+/** Une pièce de la garde-robe, résumée pour être soumise au modèle. */
+export type PieceResumee = {
+  id: string
+  nom: string
+  categorie: string
+  sousCategorie: string | null
+  couleurPrincipale: string | null
+  matiere: string | null
+  motif: string | null
+  styles: string[]
+  occasions: string[]
+  saisons: string[]
+}
+
+export type ContrainteOutfit = {
+  texte: string | null
+  occasion: string | null
+  saison: string | null
+}
+
+export type OutfitSuggere = {
+  nom: string
+  /** Identifiants réels, déjà vérifiés comme présents dans la garde-robe. */
+  vetementIds: string[]
+  justification: string
+}
+
 /**
  * Seul point de contact entre l'application et l'IA.
  *
@@ -32,6 +59,10 @@ export type ContexteVetement = {
  */
 export interface FournisseurIA {
   analyserVetement(cheminImage: string, contexte: ContexteVetement): Promise<AttributsVetement>
+  suggererOutfits(
+    garderobe: PieceResumee[],
+    contrainte: ContrainteOutfit,
+  ): Promise<OutfitSuggere[]>
 }
 
 /**

@@ -335,7 +335,7 @@ Gestion du quota.
 
 **Critère de sortie** : ajouter un vêtement remplit automatiquement ses attributs.
 
-### Lot 3 — Outfits et visualisation
+### Lot 3 — Outfits et visualisation — ✅ livré
 
 Composition manuelle, composition assistée par IA, génération des **deux**
 variantes de prompt, export du pack ZIP numéroté, réimport du rendu.

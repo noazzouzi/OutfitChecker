@@ -4,7 +4,7 @@ Application web personnelle de garde-robe et de composition de tenues.
 Elle tourne **entièrement en local**, sur `localhost`, sans service hébergé.
 
 Le plan complet du MVP est dans [`docs/PLAN.md`](docs/PLAN.md).
-Ce dépôt en est au **lot 2 — Chaîne IA**.
+Ce dépôt en est au **lot 3 — Outfits et visualisation**.
 
 ---
 
@@ -100,6 +100,42 @@ une seule implémentation : `AdaptateurCli`. Passer à une clé API revient à
 
 ---
 
+## Composer et visualiser une tenue
+
+Une tenue se compose à la main, ou se fait proposer par l'IA : elle reçoit la
+garde-robe **décrite en texte** — pas les photos, les descriptions du lot 2
+suffisent et coûtent bien moins cher — et renvoie des combinaisons de pièces que
+tu possèdes réellement.
+
+La fiche d'une tenue produit **deux prompts de génération d'image**, parce que
+les deux générateurs visés ne réagissent pas au même registre :
+
+| Cible | Registre | Pourquoi |
+|---|---|---|
+| **Nano Banana** (Gemini) | instructionnel | Il compose à partir des images jointes ; on lui parle comme à un monteur, en désignant les fichiers par leur numéro |
+| **GPT Image** (ChatGPT) | descriptif | Il suit mieux une description de scène complète et s'appuie davantage sur le texte |
+
+Le workflow est manuel, par choix : copie le prompt, télécharge le **pack
+d'images**, glisse les deux dans ChatGPT ou Gemini, puis réimporte l'image
+obtenue dans la fiche.
+
+> **Le point à ne pas casser** : les fichiers du pack (`1-veste.png`,
+> `2-t-shirt.png`…) sont numérotés dans le même ordre que les lignes « image N »
+> du prompt instructionnel. Les deux viennent du champ `ordre` de
+> `outfit_vetements`, calculé une seule fois à la création selon un ordre
+> canonique (veste, haut, robe, bas, chaussures, accessoire). Si les deux
+> numérotations divergent, le générateur habille le mannequin avec les mauvaises
+> pièces.
+
+Les prompts sont **recalculés à chaque affichage** depuis les pièces, donc
+toujours cohérents avec la composition. Une version retouchée à la main peut
+être enregistrée ; elle est alors figée, avec un retour possible au prompt généré.
+
+Le **profil morphologique** décrit le mannequin. Sans profil, la description
+reste générique et la fiche le signale.
+
+---
+
 ## Ce que fait le lot 1
 
 - Ajouter un vêtement **depuis une photo** ou **depuis l'URL d'une fiche produit**
@@ -145,9 +181,10 @@ src/
 ├── app/
 │   ├── api/images/[fichier]/   sert les images depuis ./data/
 │   ├── vetements/              ajout, fiche, modification
+│   ├── outfits/                liste, compositeur, fiche, suggestions
 │   ├── profil/
 │   └── page.tsx                garde-robe
-├── components/                 formulaires, grille, détourage, statuts
+├── components/                 formulaires, grille, détourage, statuts, prompts
 └── lib/
     ├── ai/                     interface, prompt, schéma Zod, adaptateur CLI
     ├── db/                     schéma Drizzle et connexion SQLite
@@ -156,6 +193,7 @@ src/
     ├── images.ts               helpers partagés client/serveur
     ├── images.server.ts        écriture et lecture disque
     ├── jobs.ts                 file d'analyse et état de la file
+    ├── prompts-image.ts        les deux variantes de prompt et l'ordre des pièces
     ├── requetes.ts             lectures en base
     └── constantes.ts           vocabulaire contrôlé (catégories, styles…)
 worker/

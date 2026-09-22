@@ -5,6 +5,7 @@ import { urlAffichage, urlImage } from '@/lib/images'
 import { LIBELLES_CATEGORIE } from '@/lib/constantes'
 import { BoutonDetourage } from '@/components/BoutonDetourage'
 import { BoutonSupprimer } from '@/components/BoutonSupprimer'
+import { supprimerVetement } from '@/lib/actions'
 import { BoutonAnalyse } from '@/components/BoutonAnalyse'
 import { BadgeStatut } from '@/components/BadgeStatut'
 
@@ -48,7 +49,7 @@ export default async function PageVetement({ params }: { params: Promise<{ id: s
           <Link className="bouton-secondaire" href={`/vetements/${vetement.id}/modifier`}>
             Modifier
           </Link>
-          <BoutonSupprimer id={vetement.id} nom={vetement.nom} />
+          <BoutonSupprimer id={vetement.id} nom={vetement.nom} action={supprimerVetement} />
         </div>
       </div>
 

@@ -1,7 +1,15 @@
 import { spawn } from 'node:child_process'
-import { extraireJson, schemaAnalyseVetement } from './schemas'
-import { promptAnalyseVetement } from './prompts'
-import { ErreurQuotaIA, type AttributsVetement, type ContexteVetement, type FournisseurIA } from './types'
+import { extraireJson, schemaAnalyseVetement, schemaSuggestions } from './schemas'
+import { promptAnalyseVetement, promptSuggestionOutfits } from './prompts'
+import {
+  ErreurQuotaIA,
+  type AttributsVetement,
+  type ContexteVetement,
+  type ContrainteOutfit,
+  type FournisseurIA,
+  type OutfitSuggere,
+  type PieceResumee,
+} from './types'
 
 /** Binaire du CLI. Surchargeable si `claude` n'est pas dans le PATH du worker. */
 const BINAIRE = process.env.OUTFITCHECKER_CLAUDE_BIN ?? 'claude'
@@ -156,5 +164,38 @@ export class AdaptateurCli implements FournisseurIA {
     }
 
     return { ...analyse.data, brut }
+  }
+
+  async suggererOutfits(
+    garderobe: PieceResumee[],
+    contrainte: ContrainteOutfit,
+  ): Promise<OutfitSuggere[]> {
+    if (garderobe.length === 0) return []
+
+    const texte = await executerCli(
+      promptSuggestionOutfits(garderobe, contrainte),
+      this.dossierTravail,
+    )
+
+    const analyse = schemaSuggestions.safeParse(extraireJson(texte))
+    if (!analyse.success) {
+      throw new Error(`Suggestions invalides — ${analyse.error.issues[0]?.message ?? ''}`)
+    }
+
+    return (
+      analyse.data.propositions
+        .map((proposition) => ({
+          nom: proposition.nom,
+          justification: proposition.justification,
+          // Les numéros sont ceux de l'inventaire envoyé au modèle. Un numéro
+          // hors bornes ou répété est écarté : le modèle n'a pas à être cru
+          // sur parole, et une tenue amputée vaut mieux qu'un plantage.
+          vetementIds: Array.from(new Set(proposition.pieces))
+            .filter((numero) => numero >= 1 && numero <= garderobe.length)
+            .map((numero) => garderobe[numero - 1].id),
+        }))
+        // Une « tenue » d'une seule pièce n'en est pas une.
+        .filter((proposition) => proposition.vetementIds.length >= 2)
+    )
   }
 }

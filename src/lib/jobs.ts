@@ -3,6 +3,8 @@ import { and, asc, eq, lte, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { jobsIa, vetements } from '@/lib/db/schema'
 
+import type { ContrainteOutfit, OutfitSuggere } from '@/lib/ai/types'
+
 export type PayloadAnalyse = {
   vetementId: string
   /** true = remplacer aussi les champs déjà renseignés. */
@@ -42,6 +44,34 @@ export async function enfilerAnalyse(vetementId: string, ecraser = false): Promi
     .where(eq(vetements.id, vetementId))
 }
 
+export type PayloadSuggestion = ContrainteOutfit
+
+export type ResultatSuggestion = { propositions: OutfitSuggere[] }
+
+/**
+ * Demande une composition d'outfits.
+ *
+ * Contrairement à l'analyse, ce n'est pas idempotent : deux demandes
+ * successives sont deux questions différentes, même avec la même contrainte.
+ */
+export async function enfilerSuggestion(contrainte: ContrainteOutfit): Promise<string> {
+  const id = randomUUID()
+  await db.insert(jobsIa).values({
+    id,
+    createdAt: Date.now(),
+    type: 'suggestion_outfit',
+    payload: contrainte satisfies PayloadSuggestion,
+    statut: 'en_attente',
+    disponibleA: 0,
+  })
+  return id
+}
+
+export async function obtenirJob(id: string) {
+  const lignes = await db.select().from(jobsIa).where(eq(jobsIa.id, id)).limit(1)
+  return lignes[0] ?? null
+}
+
 /** Prochain job exécutable : en attente et dont le délai de reprise est écoulé. */
 export async function prochainJob() {
   const lignes = await db
@@ -74,7 +104,12 @@ export async function etatFile(): Promise<EtatFile> {
       createdAt: jobsIa.createdAt,
     })
     .from(jobsIa)
-    .where(sql`${jobsIa.statut} in ('en_attente','en_cours','echec')`)
+    .where(
+      and(
+        eq(jobsIa.type, 'analyse_vetement'),
+        sql`${jobsIa.statut} in ('en_attente','en_cours','echec')`,
+      ),
+    )
 
   const enAttente = jobs.filter((j) => j.statut === 'en_attente')
   const differes = enAttente.filter((j) => j.disponibleA > Date.now())

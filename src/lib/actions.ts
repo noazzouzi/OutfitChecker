@@ -3,20 +3,21 @@
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { db } from '@/lib/db'
-import { profil, vetements } from '@/lib/db/schema'
-import { obtenirVetement } from '@/lib/requetes'
-import { enfilerAnalyse } from '@/lib/jobs'
+import { outfitVetements, outfits, profil, vetements } from '@/lib/db/schema'
+import { obtenirOutfit, obtenirVetement } from '@/lib/requetes'
+import { enfilerAnalyse, enfilerSuggestion } from '@/lib/jobs'
 import { lireFicheProduit, type FicheProduit } from '@/lib/boutique'
 import {
   enregistrerFichierEnvoye,
   supprimerImage,
   telechargerImage,
 } from '@/lib/images.server'
-import { CATEGORIES, OCCASIONS, SAISONS, STYLES } from '@/lib/constantes'
+import { CATEGORIES, OCCASIONS, SAISONS, SOURCES_OUTFIT, STYLES } from '@/lib/constantes'
+import { ordonnerPieces } from '@/lib/prompts-image'
 
 export type EtatFormulaire = { erreur: string } | null
 
@@ -295,4 +296,146 @@ export async function enregistrerProfil(
 
   revalidatePath('/profil')
   return null
+}
+
+/* ------------------------------------------------------------------ */
+/* Outfits                                                             */
+/* ------------------------------------------------------------------ */
+
+const schemaOutfit = z.object({
+  nom: z.string().trim().min(1, "Donne un nom à la tenue."),
+  occasion: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? null : v))
+    .nullable(),
+  saison: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? null : v))
+    .nullable(),
+  note: texteOptionnel,
+  source: z.enum(SOURCES_OUTFIT).catch('manuel'),
+})
+
+export async function creerOutfit(
+  _precedent: EtatFormulaire,
+  formData: FormData,
+): Promise<EtatFormulaire> {
+  const lire = (cle: string) => (formData.get(cle) as string | null) ?? ''
+  const analyse = schemaOutfit.safeParse({
+    nom: lire('nom'),
+    occasion: lire('occasion'),
+    saison: lire('saison'),
+    note: lire('note'),
+    source: lire('source'),
+  })
+  if (!analyse.success) {
+    return { erreur: analyse.error.issues[0]?.message ?? 'Formulaire invalide.' }
+  }
+
+  const ids = formData.getAll('vetementIds').filter((v): v is string => typeof v === 'string')
+  if (ids.length < 2) return { erreur: 'Sélectionne au moins deux pièces.' }
+
+  let id: string
+  try {
+    const pieces = await db.select().from(vetements).where(inArray(vetements.id, ids))
+    if (pieces.length < 2) return { erreur: 'Les pièces sélectionnées sont introuvables.' }
+
+    id = randomUUID()
+    await db.insert(outfits).values({
+      id,
+      createdAt: Date.now(),
+      ...analyse.data,
+      occasion: analyse.data.occasion as never,
+      saison: analyse.data.saison as never,
+    })
+
+    // L'ordre est calculé, pas subi : il détermine à la fois la numérotation
+    // du pack d'images et les références « image N » du prompt instructionnel.
+    // Les deux doivent coïncider, sinon le générateur mélange les pièces.
+    await db.insert(outfitVetements).values(
+      ordonnerPieces(pieces).map((piece, index) => ({
+        outfitId: id,
+        vetementId: piece.id,
+        role: piece.categorie,
+        ordre: index,
+      })),
+    )
+  } catch (erreur) {
+    return { erreur: messageErreur(erreur) }
+  }
+
+  revalidatePath('/outfits')
+  redirect(`/outfits/${id}`)
+}
+
+export async function supprimerOutfit(id: string): Promise<void> {
+  const existant = await obtenirOutfit(id)
+  await db.delete(outfits).where(eq(outfits.id, id))
+  await supprimerImage(existant?.outfit.imageRenduFichier)
+
+  revalidatePath('/outfits')
+  redirect('/outfits')
+}
+
+/** Reçoit l'image produite par le générateur externe. */
+export async function enregistrerRendu(formData: FormData): Promise<void> {
+  const id = formData.get('id') as string
+  const fichier = formData.get('fichier')
+  if (!id || !(fichier instanceof File) || fichier.size === 0) return
+
+  const existant = await obtenirOutfit(id)
+  const nomFichier = await enregistrerFichierEnvoye(fichier)
+
+  await db.update(outfits).set({ imageRenduFichier: nomFichier }).where(eq(outfits.id, id))
+  await supprimerImage(existant?.outfit.imageRenduFichier)
+
+  revalidatePath('/outfits')
+  revalidatePath(`/outfits/${id}`)
+}
+
+/**
+ * Mémorise une version retouchée d'un prompt. Tant qu'aucune retouche n'est
+ * enregistrée, le prompt est recalculé depuis les pièces — il reste donc
+ * toujours cohérent avec la composition.
+ */
+export async function enregistrerPrompt(
+  id: string,
+  cible: string,
+  texte: string,
+): Promise<void> {
+  const existant = await obtenirOutfit(id)
+  if (!existant) return
+
+  const prompts = { ...(existant.outfit.prompts ?? {}) }
+  if (texte.trim().length === 0) delete prompts[cible]
+  else prompts[cible] = texte
+
+  await db.update(outfits).set({ prompts }).where(eq(outfits.id, id))
+  revalidatePath(`/outfits/${id}`)
+}
+
+/* ------------------------------------------------------------------ */
+/* Suggestions IA                                                      */
+/* ------------------------------------------------------------------ */
+
+export async function demanderSuggestions(
+  _precedent: EtatFormulaire,
+  formData: FormData,
+): Promise<EtatFormulaire> {
+  const lire = (cle: string) => ((formData.get(cle) as string | null) ?? '').trim()
+
+  let jobId: string
+  try {
+    jobId = await enfilerSuggestion({
+      texte: lire('texte') || null,
+      occasion: lire('occasion') || null,
+      saison: lire('saison') || null,
+    })
+  } catch (erreur) {
+    return { erreur: messageErreur(erreur) }
+  }
+
+  redirect(`/outfits/suggerer?job=${jobId}`)
 }

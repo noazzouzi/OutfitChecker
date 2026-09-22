@@ -1,9 +1,20 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { supprimerVetement } from '@/lib/actions'
 
-export function BoutonSupprimer({ id, nom }: { id: string; nom: string }) {
+/**
+ * `action` est une action serveur transmise depuis un composant serveur :
+ * le même bouton sert pour les vêtements comme pour les tenues.
+ */
+export function BoutonSupprimer({
+  id,
+  nom,
+  action,
+}: {
+  id: string
+  nom: string
+  action: (id: string) => Promise<void>
+}) {
   const [confirme, setConfirme] = useState(false)
   const [enCours, demarrer] = useTransition()
 
@@ -22,7 +33,7 @@ export function BoutonSupprimer({ id, nom }: { id: string; nom: string }) {
         type="button"
         className="bouton bg-red-600 text-white"
         disabled={enCours}
-        onClick={() => demarrer(() => void supprimerVetement(id))}
+        onClick={() => demarrer(() => void action(id))}
       >
         {enCours ? 'Suppression…' : 'Confirmer'}
       </button>

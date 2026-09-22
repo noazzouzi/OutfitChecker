@@ -1,5 +1,5 @@
 import { LIBELLES_CATEGORIE, OCCASIONS, SAISONS, STYLES } from '@/lib/constantes'
-import type { ContexteVetement } from './types'
+import type { ContexteVetement, ContrainteOutfit, PieceResumee } from './types'
 
 /**
  * Prompt d'analyse d'un vêtement.
@@ -58,4 +58,74 @@ Exemple : "chemise oxford en coton épais bleu ciel, coupe droite, col boutonné
 
 N'invente pas de détail que tu ne vois pas. Si une information n'est pas
 visible, donne la valeur la plus probable sans la sur-préciser.`
+}
+
+/**
+ * Prompt de suggestion de tenues.
+ *
+ * La garde-robe est envoyée en texte, pas en images : les descriptions
+ * produites au lot 2 suffisent, et joindre cent photos serait lent et coûteux.
+ * Chaque pièce est numérotée ; le modèle répond avec ces numéros plutôt qu'avec
+ * des identifiants, ce qui économise des jetons et évite les recopies fautives.
+ */
+export function promptSuggestionOutfits(
+  garderobe: PieceResumee[],
+  contrainte: ContrainteOutfit,
+): string {
+  const inventaire = garderobe
+    .map((piece, index) => {
+      const details = [
+        piece.sousCategorie ?? piece.nom,
+        piece.couleurPrincipale,
+        piece.matiere,
+        piece.motif && piece.motif !== 'uni' ? piece.motif : null,
+      ]
+        .filter(Boolean)
+        .join(', ')
+
+      const etiquettes = [
+        piece.styles.join('/') || null,
+        piece.occasions.join('/') || null,
+        piece.saisons.join('/') || null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+
+      return `${index + 1}. [${piece.categorie}] ${details}${etiquettes ? ` — ${etiquettes}` : ''}`
+    })
+    .join('\n')
+
+  const demandes = [
+    contrainte.texte ? `Demande : ${contrainte.texte}` : null,
+    contrainte.occasion ? `Occasion : ${contrainte.occasion}` : null,
+    contrainte.saison ? `Saison : ${contrainte.saison}` : null,
+  ].filter(Boolean)
+
+  return `Tu composes des tenues à partir d'une garde-robe existante.
+
+Garde-robe disponible :
+${inventaire}
+
+${demandes.length > 0 ? demandes.join('\n') : 'Aucune contrainte particulière : propose des tenues polyvalentes.'}
+
+Compose 3 tenues cohérentes en n'utilisant QUE les pièces ci-dessus, désignées
+par leur numéro. Chaque tenue doit comporter au minimum un haut (ou une robe),
+un bas si ce n'est pas une robe, et des chaussures si la garde-robe en contient.
+N'utilise jamais deux pièces de la même catégorie dans une même tenue, sauf
+pour les accessoires.
+
+Réponds par un objet JSON valide et RIEN d'autre :
+
+{
+  "propositions": [
+    {
+      "nom": "nom court et descriptif de la tenue",
+      "pieces": [numéros des pièces],
+      "justification": "une phrase : pourquoi ces pièces vont ensemble et répondent à la demande"
+    }
+  ]
+}
+
+Si la garde-robe ne permet pas de composer trois tenues distinctes, propose-en
+moins plutôt que de te répéter ou d'inventer des pièces.`
 }

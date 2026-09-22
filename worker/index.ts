@@ -15,7 +15,12 @@ import fs from 'node:fs'
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { jobsIa, vetements } from '@/lib/db/schema'
-import { prochainJob, type PayloadAnalyse } from '@/lib/jobs'
+import {
+  prochainJob,
+  type PayloadAnalyse,
+  type PayloadSuggestion,
+  type ResultatSuggestion,
+} from '@/lib/jobs'
 import { cheminImage } from '@/lib/images.server'
 import { ia, ErreurQuotaIA } from '@/lib/ai'
 
@@ -135,6 +140,37 @@ async function traiterAnalyse(payload: PayloadAnalyse) {
   return { vetementId: vetement.id, descriptionPrompt: attributs.descriptionPrompt }
 }
 
+async function traiterSuggestion(payload: PayloadSuggestion): Promise<ResultatSuggestion> {
+  const garderobe = await db.select().from(vetements)
+  if (garderobe.length < 2) {
+    throw new ErreurDefinitive(
+      'Il faut au moins deux vêtements dans la garde-robe pour composer une tenue.',
+    )
+  }
+
+  const propositions = await ia.suggererOutfits(
+    garderobe.map((v) => ({
+      id: v.id,
+      nom: v.nom,
+      categorie: v.categorie,
+      sousCategorie: v.sousCategorie,
+      couleurPrincipale: v.couleurPrincipale,
+      matiere: v.matiere,
+      motif: v.motif,
+      styles: v.styles ?? [],
+      occasions: v.occasions ?? [],
+      saisons: v.saisons ?? [],
+    })),
+    payload,
+  )
+
+  if (propositions.length === 0) {
+    throw new Error("Le modèle n'a proposé aucune tenue exploitable.")
+  }
+
+  return { propositions }
+}
+
 async function traiterUnJob(): Promise<boolean> {
   const job = await prochainJob()
   if (!job) return false
@@ -144,19 +180,30 @@ async function traiterUnJob(): Promise<boolean> {
     .set({ statut: 'en_cours' })
     .where(eq(jobsIa.id, job.id))
 
-  const payload = job.payload as PayloadAnalyse
-  journal(`${job.type} → ${payload.vetementId}`)
+  journal(`${job.type} démarré`)
 
   try {
-    const resultat = await traiterAnalyse(payload)
+    const resultat =
+      job.type === 'analyse_vetement'
+        ? await traiterAnalyse(job.payload as PayloadAnalyse)
+        : job.type === 'suggestion_outfit'
+          ? await traiterSuggestion(job.payload as PayloadSuggestion)
+          : (() => {
+              throw new ErreurDefinitive(`Type de job inconnu : ${job.type}`)
+            })()
+
     await db
       .update(jobsIa)
       .set({ statut: 'ok', resultat, erreur: null })
       .where(eq(jobsIa.id, job.id))
-    journal('✓ analysé')
+    journal(`✓ ${job.type}`)
     return true
   } catch (erreur) {
     const message = erreur instanceof Error ? erreur.message : String(erreur)
+
+    // Seules les analyses portent un statut sur le vêtement.
+    const vetementId =
+      job.type === 'analyse_vetement' ? (job.payload as PayloadAnalyse).vetementId : null
 
     if (erreur instanceof ErreurQuotaIA) {
       // Ce n'est pas un échec : le travail reste à faire, plus tard.
@@ -170,10 +217,12 @@ async function traiterUnJob(): Promise<boolean> {
           erreur: message,
         })
         .where(eq(jobsIa.id, job.id))
-      await db
-        .update(vetements)
-        .set({ statutAnalyse: 'en_attente' })
-        .where(eq(vetements.id, payload.vetementId))
+      if (vetementId) {
+        await db
+          .update(vetements)
+          .set({ statutAnalyse: 'en_attente' })
+          .where(eq(vetements.id, vetementId))
+      }
 
       journal(`⏸ quota atteint, reprise dans ${PAUSE_QUOTA_MS / 60000} min`)
       return true
@@ -194,11 +243,11 @@ async function traiterUnJob(): Promise<boolean> {
       })
       .where(eq(jobsIa.id, job.id))
 
-    if (abandonne) {
+    if (abandonne && vetementId) {
       await db
         .update(vetements)
         .set({ statutAnalyse: 'echec' })
-        .where(eq(vetements.id, payload.vetementId))
+        .where(eq(vetements.id, vetementId))
     }
 
     journal(

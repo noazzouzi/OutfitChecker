@@ -24,6 +24,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
             <Link href="/" className="text-sm text-texte-doux hover:text-texte">
               Garde-robe
             </Link>
+            <Link href="/outfits" className="text-sm text-texte-doux hover:text-texte">
+              Tenues
+            </Link>
             <Link href="/profil" className="text-sm text-texte-doux hover:text-texte">
               Profil
             </Link>
