@@ -147,8 +147,15 @@ function extraireArticles(maximum: number) {
         .replace(/-/g, ' ')
         .trim()
 
+      // Le coloris vit dans le paramètre `colorId`. Sans lui, la fiche s'ouvre
+      // dans sa couleur par défaut : on importait un trench marron après avoir
+      // vu un trench beige dans les résultats. Les autres paramètres
+      // (provenance, défilement) ne servent à rien et sont écartés.
+      const adresse = new URL(lien.href)
+      const coloris = adresse.searchParams.get('colorId')
+
       return {
-        url: lien.href.split('?')[0],
+        url: adresse.origin + adresse.pathname + (coloris ? `?colorId=${coloris}` : ''),
         nom: slug.charAt(0).toUpperCase() + slug.slice(1),
         prix: prix ? Number.parseFloat(prix[1].replace(',', '.')) : null,
         image: lien.querySelector('img')?.currentSrc?.split('?')[0] ?? null,

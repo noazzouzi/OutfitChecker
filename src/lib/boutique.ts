@@ -144,10 +144,13 @@ function extraireFiche(
     marque: produit?.marque ?? og.marque ?? null,
     prix: produit?.prix ?? og.prix ?? null,
     devise: produit?.devise ?? og.devise ?? null,
+    // Pour l'image, l'Open Graph passe avant le JSON-LD : quand l'URL désigne
+    // un coloris (`?colorId=` chez Lefties), le JSON-LD garde la photo du
+    // coloris par défaut, alors que l'`og:image` suit le coloris choisi.
     // Dernier recours : la plus grande image réellement affichée. Certaines
     // fiches n'exposent aucune image dans leurs métadonnées.
     imageUrl:
-      absolutiser(produit?.imageUrl ?? og.imageUrl, cible) ?? imagesCandidates[0] ?? null,
+      absolutiser(og.imageUrl ?? produit?.imageUrl, cible) ?? imagesCandidates[0] ?? null,
     boutique: og.boutique ?? cible.hostname.replace(/^www\./, ''),
     description: produit?.description ?? og.description ?? null,
     source: produit ? 'json-ld' : og.nom || og.imageUrl ? 'open-graph' : 'partiel',
