@@ -1,5 +1,11 @@
 import { LIBELLES_CATEGORIE, OCCASIONS, SAISONS, STYLES } from '@/lib/constantes'
-import type { ContexteVetement, ContrainteOutfit, PieceResumee } from './types'
+import type {
+  CandidatsPiece,
+  ContexteVetement,
+  ContrainteOutfit,
+  PieceReference,
+  PieceResumee,
+} from './types'
 
 /**
  * Prompt d'analyse d'un vêtement.
@@ -243,4 +249,70 @@ Emploie le vocabulaire des catalogues français, pas les anglicismes :
 il est appliqué séparément. Pas de marque, pas de ponctuation.
 
 Exemples : "bomber suédine", "pantalon large plissé", "t-shirt col tunisien".`
+}
+
+/**
+ * Prompt de notation des articles trouvés en boutique.
+ *
+ * Les numéros de pièce et d'article sont ceux de la liste envoyée, à partir de
+ * 1 : le modèle recopie mieux un petit entier qu'un chemin de fichier. La
+ * conversion en index se fait côté appelant.
+ */
+export function promptNotationArticles(
+  cheminReference: string,
+  pieces: PieceReference[],
+  candidats: CandidatsPiece[],
+): string {
+  const blocs = candidats
+    .map((candidat) => {
+      const piece = pieces[candidat.piece]
+      const detail = [piece.description, piece.couleur, piece.matiere].filter(Boolean).join(', ')
+      const images = candidat.images
+        .map((chemin, index) => `  - article ${index + 1} : ${chemin}`)
+        .join('\n')
+      return `Pièce ${candidat.piece + 1} [${piece.categorie}] — ${detail}\n${images}`
+    })
+    .join('\n\n')
+
+  return `On cherche à reproduire la tenue portée sur une image de référence avec des
+articles vendus en boutique. Pour chaque pièce de la tenue, on a trouvé quelques
+articles candidats. Note la ressemblance de chacun avec la pièce qu'il doit
+remplacer.
+
+Image de référence : ${cheminReference}
+
+Ouvre l'image de référence, puis chaque photo d'article.
+
+${blocs}
+
+Compare chaque article à la pièce vue sur l'image de référence, pas à la
+description écrite : elle n'est qu'un repère. Ne juge que l'article désigné —
+les mannequins portent souvent d'autres vêtements sur les photos, ignore-les.
+
+Barème, de 0 à 100 :
+- 90 et plus : quasiment la même pièce (type, coupe, longueur, couleur, matière, détails) ;
+- 70 à 89 : même type et même couleur, quelques détails ou la longueur diffèrent ;
+- 45 à 69 : même type de pièce, mais la couleur, la coupe ou la longueur s'écartent nettement ;
+- 20 à 44 : pièce qui remplit la même fonction dans la tenue, sans vraiment lui ressembler ;
+- moins de 20 : hors sujet (autre type de pièce, article sans rapport).
+
+Le type de pièce prime sur tout le reste. Le moteur de recherche renvoie parfois
+un autre article qui montre la pièce cherchée : un pantalon vendu avec sa
+ceinture n'est pas une ceinture, une chemise portée sous une veste n'est pas
+une veste. Note-le comme hors sujet, même si l'élément visible ressemble.
+
+Sois exigeant : ces notes disent à l'utilisateur si la tenue reproduite sera
+fidèle. Un trench court ne remplace pas bien un long manteau, un jogging pas un
+pantalon droit.
+
+Réponds par un objet JSON valide et RIEN d'autre :
+
+{
+  "notes": [
+    { "piece": 1, "article": 1, "score": 0 }
+  ]
+}
+
+Une entrée par article listé ci-dessus, avec les numéros de pièce et d'article
+tels qu'ils apparaissent dans la liste.`
 }

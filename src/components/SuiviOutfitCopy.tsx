@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { urlAffichage } from '@/lib/images'
 import type { ResultatOutfitCopyComplet } from '@/lib/jobs'
 import type { Vetement } from '@/lib/db/schema'
-import type { RechercheBoutique } from '@/lib/lefties'
+import type { ArticleTrouve, RechercheBoutique } from '@/lib/lefties'
+import type { TenueBoutique } from '@/lib/tenues-boutique'
 
 type Etat = {
   statut: 'en_attente' | 'en_cours' | 'ok' | 'echec' | 'introuvable'
@@ -115,8 +116,8 @@ export function SuiviOutfitCopy({
           <div className="rounded-lg border border-bordure bg-surface p-8 text-center">
             <p className="text-sm">Analyse de la tenue…</p>
             <p className="mt-1 text-xs text-texte-doux">
-              Le worker décrit la tenue et cherche les correspondances. Compte une trentaine de
-              secondes.
+              Le worker décrit la tenue, cherche chez Lefties puis note chaque article trouvé.
+              Compte une à deux minutes.
             </p>
           </div>
         ) : (
@@ -138,7 +139,7 @@ export function SuiviOutfitCopy({
                     <div>
                       <div className="flex items-center gap-3">
                         <h3 className="font-medium">{proposition.nom}</h3>
-                        <Proximite valeur={proposition.proximite} />
+                        <Ressemblance valeur={proposition.proximite} />
                       </div>
                       {proposition.justification && (
                         <p className="mt-1 max-w-2xl text-sm text-texte-doux">
@@ -173,9 +174,15 @@ export function SuiviOutfitCopy({
               )
             })}
 
+            <TenuesLefties
+              tenues={etat!.resultat!.tenuesBoutique ?? []}
+              pieces={etat!.resultat!.reference.pieces}
+            />
+
             <Boutique
               resultats={etat!.resultat!.boutique ?? []}
               pieces={etat!.resultat!.reference.pieces}
+              avecTenues={(etat!.resultat!.tenuesBoutique ?? []).length > 0}
             />
           </div>
         )}
@@ -192,9 +199,11 @@ export function SuiviOutfitCopy({
 function Boutique({
   resultats,
   pieces,
+  avecTenues,
 }: {
   resultats: RechercheBoutique[]
   pieces: { description: string; categorie: string }[]
+  avecTenues: boolean
 }) {
   const avecArticles = resultats.filter((r) => r.articles.length > 0)
   if (avecArticles.length === 0) return null
@@ -202,10 +211,12 @@ function Boutique({
   return (
     <section className="space-y-4 pt-4">
       <div>
-        <h2 className="text-sm font-semibold">Ce qui s&apos;en rapproche chez Lefties</h2>
+        <h2 className="text-sm font-semibold">
+          {avecTenues ? 'Tous les articles trouvés, pièce par pièce' : 'Ce qui s\u2019en rapproche chez Lefties'}
+        </h2>
         <p className="mt-1 text-xs text-texte-doux">
-          Résultats du moteur de recherche de la boutique, une requête par pièce repérée.
-          Un clic sur un article l&apos;importe dans ta garde-robe.
+          Résultats du moteur de recherche de la boutique, une requête par pièce repérée, du
+          plus au moins ressemblant. Un clic sur un article l&apos;importe dans ta garde-robe.
         </p>
       </div>
 
@@ -222,7 +233,12 @@ function Boutique({
                   className="group block overflow-hidden rounded-lg border border-bordure
                              bg-surface transition hover:border-texte-doux"
                 >
-                  <div className="flex aspect-3/4 items-center justify-center overflow-hidden bg-fond">
+                  <div className="relative flex aspect-3/4 items-center justify-center overflow-hidden bg-fond">
+                    {article.ressemblance != null && (
+                      <span className="absolute top-1.5 left-1.5 z-10">
+                        <Ressemblance valeur={article.ressemblance} compact />
+                      </span>
+                    )}
                     {article.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -236,7 +252,7 @@ function Boutique({
                   <div className="space-y-0.5 p-2">
                     <p className="truncate text-xs font-medium">{article.nom}</p>
                     <p className="text-xs text-texte-doux">
-                      {article.prix != null ? `${article.prix.toFixed(2)} €` : '—'}
+                      {article.prix != null ? euros(article.prix) : '—'}
                     </p>
                   </div>
                 </Link>
@@ -249,8 +265,113 @@ function Boutique({
   )
 }
 
-/** La proximité est une estimation du modèle, pas une mesure : on le dit. */
-function Proximite({ valeur }: { valeur: number }) {
+const FORMAT_EUROS = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
+
+function euros(montant: number): string {
+  return FORMAT_EUROS.format(montant)
+}
+
+/**
+ * Tenues complètes composées avec les articles Lefties les mieux notés, de la
+ * plus à la moins ressemblante.
+ */
+function TenuesLefties({
+  tenues,
+  pieces,
+}: {
+  tenues: TenueBoutique[]
+  pieces: { description: string; categorie: string }[]
+}) {
+  if (tenues.length === 0) return null
+
+  return (
+    <section className="space-y-4 pt-4">
+      <div>
+        <h2 className="text-sm font-semibold">Tenues complètes chez Lefties</h2>
+        <p className="mt-1 max-w-2xl text-xs text-texte-doux">
+          Chaque article est comparé à la pièce de la référence, photo contre photo. La
+          ressemblance d&apos;une tenue pondère ces notes par le poids visuel de chaque pièce —
+          le manteau compte plus que la cravate — et une pièce sans équivalent compte pour zéro.
+        </p>
+      </div>
+
+      {tenues.map((tenue) => (
+        <article key={tenue.nom} className="rounded-lg border border-bordure bg-surface p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h3 className="font-medium">{tenue.nom}</h3>
+              <Ressemblance valeur={tenue.ressemblance} />
+            </div>
+            <p className="text-sm">
+              <span className="text-texte-doux">
+                {tenue.prixIncomplet ? 'Total, au moins : ' : 'Total : '}
+              </span>
+              <span className="font-semibold">{euros(tenue.prixTotal)}</span>
+            </p>
+          </div>
+
+          <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+            {tenue.elements.map(({ piece, article }) => (
+              <li key={piece}>
+                {article ? (
+                  <ArticleDeTenue article={article} categorie={pieces[piece]?.categorie} />
+                ) : (
+                  <div
+                    className="flex h-full min-h-40 flex-col items-center justify-center rounded-lg
+                               border border-dashed border-bordure p-2 text-center"
+                  >
+                    <p className="text-xs font-medium">Pas d&apos;équivalent</p>
+                    <p className="mt-1 text-xs text-texte-doux">
+                      {pieces[piece]?.description ?? pieces[piece]?.categorie}
+                    </p>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </article>
+      ))}
+    </section>
+  )
+}
+
+function ArticleDeTenue({ article, categorie }: { article: ArticleTrouve; categorie?: string }) {
+  return (
+    <Link
+      href={`/vetements/nouveau?url=${encodeURIComponent(article.url)}`}
+      title="Importer cet article dans ta garde-robe"
+      className="group block overflow-hidden rounded-lg border border-bordure bg-fond
+                 transition hover:border-texte-doux"
+    >
+      <div className="relative flex aspect-3/4 items-center justify-center overflow-hidden">
+        {article.ressemblance != null && (
+          <span className="absolute top-1.5 left-1.5 z-10">
+            <Ressemblance valeur={article.ressemblance} compact />
+          </span>
+        )}
+        {article.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={article.image}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-contain transition group-hover:scale-105"
+          />
+        ) : null}
+      </div>
+      <div className="space-y-0.5 bg-surface p-2">
+        {categorie && <p className="etiquette">{categorie}</p>}
+        <p className="truncate text-xs font-medium">{article.nom}</p>
+        <p className="text-xs text-texte-doux">
+          {article.prix != null ? euros(article.prix) : 'prix inconnu'}
+        </p>
+      </div>
+    </Link>
+  )
+}
+
+/** La ressemblance est une estimation du modèle, pas une mesure : on le dit. */
+function Ressemblance({ valeur, compact = false }: { valeur: number; compact?: boolean }) {
   const ton =
     valeur >= 70
       ? 'border-emerald-300 text-emerald-700 dark:text-emerald-400'
@@ -260,10 +381,12 @@ function Proximite({ valeur }: { valeur: number }) {
 
   return (
     <span
-      title="Proximité estimée par le modèle avec la tenue de référence"
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${ton}`}
+      title="Ressemblance estimée par le modèle avec la tenue de référence"
+      className={`rounded-full border bg-surface font-medium ${ton} ${
+        compact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2.5 py-0.5 text-xs'
+      }`}
     >
-      ~{valeur} % de proximité
+      {compact ? `${valeur} %` : `~${valeur} % de ressemblance`}
     </span>
   )
 }

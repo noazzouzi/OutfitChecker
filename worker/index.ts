@@ -23,9 +23,10 @@ import {
   type PayloadSuggestion,
   type ResultatSuggestion,
 } from '@/lib/jobs'
-import { cheminImage } from '@/lib/images.server'
-import { ia, ErreurQuotaIA } from '@/lib/ai'
-import { rechercherChezLefties, rayonDepuisProfil } from '@/lib/lefties'
+import { cheminImage, supprimerImage, telechargerImage } from '@/lib/images.server'
+import { ia, ErreurQuotaIA, type CandidatsPiece, type PieceReference } from '@/lib/ai'
+import { rechercherChezLefties, rayonDepuisProfil, type RechercheBoutique } from '@/lib/lefties'
+import { composerTenues } from '@/lib/tenues-boutique'
 
 const INTERVALLE_MS = 2_000
 const TENTATIVES_MAX = 3
@@ -217,7 +218,87 @@ async function traiterOutfitCopy(payload: PayloadOutfitCopy) {
     journal('recherche boutique indisponible :', erreur instanceof Error ? erreur.message : erreur)
   }
 
-  return { ...resultat, boutique } satisfies ResultatOutfitCopyComplet
+  // Même logique : sans notes, les articles restent affichés, simplement sans
+  // pourcentage ni tenue composée. Un quota atteint ici ne doit pas faire
+  // rejouer toute l'analyse, déjà payée.
+  if (boutique.some((recherche) => recherche.articles.length > 0)) {
+    try {
+      await noterBoutique(chemin, resultat.reference.pieces, boutique)
+    } catch (erreur) {
+      journal('notation des articles impossible :', erreur instanceof Error ? erreur.message : erreur)
+    }
+  }
+
+  const tenuesBoutique = composerTenues(resultat.reference.pieces, boutique)
+
+  return { ...resultat, boutique, tenuesBoutique } satisfies ResultatOutfitCopyComplet
+}
+
+/**
+ * Articles notés par pièce. Le moteur de Lefties classe bien : ses premiers
+ * résultats suffisent, et chaque photo notée est une lecture de plus pour le
+ * modèle.
+ */
+const ARTICLES_NOTES_PAR_PIECE = 4
+
+/**
+ * Télécharge les photos des premiers articles de chaque recherche, les fait
+ * noter par l'IA, puis reporte les notes sur les articles et les reclasse.
+ * Les photos ne servent qu'à la notation : elles sont supprimées ensuite.
+ */
+async function noterBoutique(
+  cheminReference: string,
+  pieces: PieceReference[],
+  boutique: RechercheBoutique[],
+) {
+  const fichiers: string[] = []
+  // Pour chaque pièce, l'article auquel correspond chaque photo envoyée : un
+  // téléchargement raté décale la numérotation.
+  const correspondances = new Map<number, number[]>()
+  const candidats: CandidatsPiece[] = []
+
+  try {
+    for (const recherche of boutique) {
+      const images: string[] = []
+      const articles: number[] = []
+
+      for (const [index, article] of recherche.articles.slice(0, ARTICLES_NOTES_PAR_PIECE).entries()) {
+        if (!article.image) continue
+        try {
+          // Une vignette suffit à juger, et se lit bien plus vite.
+          const adresse = new URL(article.image)
+          adresse.searchParams.set('w', '400')
+          const fichier = await telechargerImage(adresse.toString())
+          fichiers.push(fichier)
+          images.push(cheminImage(fichier))
+          articles.push(index)
+        } catch {
+          // Photo inaccessible : l'article restera sans note.
+        }
+      }
+
+      if (images.length > 0) {
+        candidats.push({ piece: recherche.piece, images })
+        correspondances.set(recherche.piece, articles)
+      }
+    }
+
+    const notes = await ia.noterArticles(cheminReference, pieces, candidats)
+
+    for (const note of notes) {
+      const recherche = boutique.find((r) => r.piece === note.piece)
+      const index = correspondances.get(note.piece)?.[note.article]
+      if (recherche && index !== undefined) recherche.articles[index].ressemblance = note.score
+    }
+
+    // Le plus ressemblant d'abord ; les articles non notés gardent l'ordre du
+    // moteur, derrière.
+    for (const recherche of boutique) {
+      recherche.articles.sort((a, b) => (b.ressemblance ?? -1) - (a.ressemblance ?? -1))
+    }
+  } finally {
+    await Promise.all(fichiers.map((fichier) => supprimerImage(fichier)))
+  }
 }
 
 async function traiterUnJob(): Promise<boolean> {

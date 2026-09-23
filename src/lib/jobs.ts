@@ -5,6 +5,7 @@ import { jobsIa, vetements } from '@/lib/db/schema'
 
 import type { ContrainteOutfit, OutfitSuggere, ResultatOutfitCopy } from '@/lib/ai/types'
 import type { RechercheBoutique } from '@/lib/lefties'
+import type { TenueBoutique } from '@/lib/tenues-boutique'
 
 export type PayloadAnalyse = {
   vetementId: string
@@ -91,6 +92,11 @@ export type PayloadOutfitCopy = { referenceImageFichier: string }
 export type ResultatOutfitCopyComplet = ResultatOutfitCopy & {
   /** Articles trouvés en boutique, une entrée par pièce de référence. */
   boutique: RechercheBoutique[]
+  /**
+   * Tenues complètes composées avec ces articles. Absent des résultats
+   * antérieurs à la notation.
+   */
+  tenuesBoutique?: TenueBoutique[]
 }
 
 export type { ResultatOutfitCopy }

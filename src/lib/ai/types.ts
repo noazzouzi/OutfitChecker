@@ -78,6 +78,22 @@ export type ResultatOutfitCopy = {
   propositions: PropositionCopie[]
 }
 
+/** Les photos d'articles trouvés en boutique pour une pièce de référence. */
+export type CandidatsPiece = {
+  /** Index de la pièce dans `TenueDeReference.pieces`. */
+  piece: number
+  /** Chemins locaux des photos, dans l'ordre des articles. */
+  images: string[]
+}
+
+export type NoteArticle = {
+  piece: number
+  /** Index de l'article dans `CandidatsPiece.images`. */
+  article: number
+  /** 0 à 100 : ressemblance de l'article avec la pièce vue sur l'image. */
+  score: number
+}
+
 /**
  * Seul point de contact entre l'application et l'IA.
  *
@@ -104,6 +120,17 @@ export interface FournisseurIA {
     cheminImage: string,
     garderobe: PieceResumee[],
   ): Promise<ResultatOutfitCopy>
+  /**
+   * Note, image contre image, la ressemblance de chaque article trouvé en
+   * boutique avec la pièce qu'il doit remplacer. Le moteur de recherche de la
+   * boutique classe par pertinence textuelle ; seul un regard sur les photos
+   * dit si l'article ressemble vraiment.
+   */
+  noterArticles(
+    cheminReference: string,
+    pieces: PieceReference[],
+    candidats: CandidatsPiece[],
+  ): Promise<NoteArticle[]>
 }
 
 /**

@@ -130,6 +130,26 @@ export const schemaOutfitCopy = z.object({
 })
 
 /**
+ * Notes de ressemblance. Une entrée mal formée est écartée, pas la réponse
+ * entière : un article sans note reste simplement affiché sans pourcentage.
+ */
+export const schemaNotesArticles = z.object({
+  notes: z
+    .array(
+      z
+        .object({
+          piece: z.coerce.number().int(),
+          article: z.coerce.number().int(),
+          score: z.coerce.number().transform((v) => Math.round(Math.min(100, Math.max(0, v)))),
+        })
+        .nullable()
+        .catch(null),
+    )
+    .default([])
+    .transform((notes) => notes.filter((note) => note !== null)),
+})
+
+/**
  * Isole l'objet JSON dans la réponse du modèle. Même en demandant « du JSON et
  * rien d'autre », un bloc ```json ou une phrase d'introduction arrivent.
  */

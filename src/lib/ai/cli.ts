@@ -2,17 +2,26 @@ import { spawn } from 'node:child_process'
 import {
   extraireJson,
   schemaAnalyseVetement,
+  schemaNotesArticles,
   schemaOutfitCopy,
   schemaSuggestions,
 } from './schemas'
-import { promptAnalyseVetement, promptOutfitCopy, promptSuggestionOutfits } from './prompts'
+import {
+  promptAnalyseVetement,
+  promptNotationArticles,
+  promptOutfitCopy,
+  promptSuggestionOutfits,
+} from './prompts'
 import {
   ErreurQuotaIA,
   type AttributsVetement,
+  type CandidatsPiece,
   type ContexteVetement,
   type ContrainteOutfit,
   type FournisseurIA,
+  type NoteArticle,
   type OutfitSuggere,
+  type PieceReference,
   type PieceResumee,
   type ResultatOutfitCopy,
 } from './types'
@@ -58,7 +67,11 @@ type SortieCli = {
  * Le prompt passe par stdin plutôt que par argv : il fait plusieurs kilo-octets
  * et contient des guillemets, des accolades et des accents.
  */
-function executerCli(prompt: string, dossierTravail: string): Promise<string> {
+function executerCli(
+  prompt: string,
+  dossierTravail: string,
+  delaiMaxMs = DELAI_MAX_MS,
+): Promise<string> {
   const arguments_ = [
     '-p',
     '--output-format',
@@ -82,7 +95,7 @@ function executerCli(prompt: string, dossierTravail: string): Promise<string> {
     const minuteur = setTimeout(() => {
       expire = true
       processus.kill('SIGKILL')
-    }, DELAI_MAX_MS)
+    }, delaiMaxMs)
 
     processus.stdout.on('data', (morceau) => (sortie += morceau))
     processus.stderr.on('data', (morceau) => (erreurs += morceau))
@@ -101,7 +114,7 @@ function executerCli(prompt: string, dossierTravail: string): Promise<string> {
       clearTimeout(minuteur)
 
       if (expire) {
-        return rejeter(new Error(`Le CLI n'a pas répondu en ${DELAI_MAX_MS / 1000} s.`))
+        return rejeter(new Error(`Le CLI n'a pas répondu en ${delaiMaxMs / 1000} s.`))
       }
 
       const trace = `${sortie}\n${erreurs}`.trim()
@@ -235,5 +248,41 @@ export class AdaptateurCli implements FournisseurIA {
         .filter((proposition) => proposition.vetementIds.length >= 2)
         .sort((a, b) => b.proximite - a.proximite),
     }
+  }
+
+  async noterArticles(
+    cheminReference: string,
+    pieces: PieceReference[],
+    candidats: CandidatsPiece[],
+  ): Promise<NoteArticle[]> {
+    const aNoter = candidats.filter((c) => c.images.length > 0 && pieces[c.piece])
+    if (aNoter.length === 0) return []
+
+    // Une image lue par article : jusqu'à deux douzaines de lectures, bien
+    // plus qu'une analyse ordinaire. Le délai est doublé en conséquence.
+    const texte = await executerCli(
+      promptNotationArticles(cheminReference, pieces, aNoter),
+      this.dossierTravail,
+      DELAI_MAX_MS * 2,
+    )
+
+    const analyse = schemaNotesArticles.safeParse(extraireJson(texte))
+    if (!analyse.success) {
+      throw new Error(`Notes invalides — ${analyse.error.issues[0]?.message ?? ''}`)
+    }
+
+    // Les numéros sont ceux de la liste envoyée (à partir de 1). Un couple
+    // pièce/article qui n'y figure pas est écarté plutôt que cru sur parole.
+    const vus = new Set<string>()
+    return analyse.data.notes
+      .map((note) => ({ piece: note.piece - 1, article: note.article - 1, score: note.score }))
+      .filter((note) => {
+        const candidat = aNoter.find((c) => c.piece === note.piece)
+        const cle = `${note.piece}:${note.article}`
+        if (!candidat || note.article < 0 || note.article >= candidat.images.length) return false
+        if (vus.has(cle)) return false
+        vus.add(cle)
+        return true
+      })
   }
 }

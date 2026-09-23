@@ -185,7 +185,7 @@ reste générique et la fiche le signale.
 
 Tu donnes la photo de quelqu'un dont la tenue t'inspire — personne réelle ou
 personnage. L'IA décrit ce qu'elle porte, puis cherche dans **ta** garde-robe
-les combinaisons qui s'en approchent, classées par proximité estimée et
+les combinaisons qui s'en approchent, classées par ressemblance estimée et
 justifiées une par une. Chaque proposition se convertit en tenue, avec ses deux
 prompts de génération ; l'image de référence reste attachée à la tenue créée.
 
@@ -194,16 +194,35 @@ appel**, là où le plan en prévoyait deux. Le modèle choisit les pièces en a
 l'image sous les yeux, ce qu'un résumé textuel intermédiaire lui retirerait —
 et ça consomme moitié moins de quota.
 
-La note de proximité est une **estimation du modèle**, pas une mesure. Elle sert
-à classer, pas à quantifier.
+La note de ressemblance est une **estimation du modèle**, pas une mesure. Elle
+sert à classer et à situer, pas à quantifier au point près.
 
 ### Ce qui s'en rapproche en boutique
 
 Sous les propositions issues de ta garde-robe, l'écran affiche des articles
 Lefties réellement en vente. Pour chaque pièce repérée sur l'image, le modèle
-rédige une requête et l'app **interroge le moteur de recherche du site** — trois
-ou quatre requêtes par image, pas un catalogue aspiré. Un clic sur un article
+rédige une requête et l'app **interroge le moteur de recherche du site** — huit
+requêtes au plus par image, pas un catalogue aspiré. Un clic sur un article
 lance son import.
+
+Chaque article trouvé est ensuite **noté par l'IA, photo contre photo** : de 0 à
+100 %, à quel point il ressemble à la pièce vue sur l'image. Les quatre premiers
+résultats de chaque recherche sont notés, en un seul appel ; leurs photos sont
+téléchargées le temps de la notation puis supprimées.
+
+Avec ces notes, l'app compose **trois tenues complètes** — la plus fidèle, puis
+les deuxième et troisième choix — chacune avec :
+
+- son **taux de ressemblance** : la moyenne des notes de ses articles, pondérée
+  par le poids visuel de chaque pièce (manteau et robe ×3, haut et bas ×2,
+  chaussures ×1,5, accessoires ×1). Une pièce sans article noté au moins 35 %
+  compte pour zéro et s'affiche « Pas d'équivalent » : le pourcentage dit aussi
+  ce que la boutique ne permet pas de copier ;
+- son **prix total**, à partir des prix affichés dans les résultats.
+
+La composition est une règle simple, sans IA (`src/lib/tenues-boutique.ts`) :
+la tenue n°1 prend le meilleur article de chaque pièce, la n°2 le deuxième, la
+n°3 le troisième. Compter une à deux minutes par image.
 
 Deux réglages font toute la différence sur la pertinence, tous deux appris à la
 mise au point :
@@ -216,6 +235,10 @@ mise au point :
   l'identifiant du rayon homme est vérifié ; pour en ajouter un autre, faire
   une recherche sur lefties.com et relever le paramètre `filter` de l'URL
   (voir `src/lib/lefties.ts`).
+- **Détecter la bascule de rayon.** Quand le rayon homme n'a aucun résultat,
+  le site bascule en silence sur le rayon femme et réécrit le filtre de l'URL.
+  L'app le détecte, écarte ces résultats et retente avec le seul type de pièce
+  (« trench long beige » → « trench »).
 
 ---
 

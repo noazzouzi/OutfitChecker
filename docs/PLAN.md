@@ -372,9 +372,25 @@ rendrait les suggestions inexploitables.
 
 Retenu à la place : **interroger le moteur de recherche du site**. Le modèle
 rédige une requête par pièce repérée sur l'image de référence, l'app lance
-trois ou quatre recherches, et affiche les articles avec nom, prix et photo.
+au plus huit recherches, et affiche les articles avec nom, prix et photo.
 Un clic les importe. Pas de catalogue à maintenir, stock à jour, et c'est la
 pertinence de Lefties qui fait le tri.
+
+### Ajout hors plan — taux de ressemblance et tenues Lefties — ✅ livré
+
+Demandé après le premier test sur une vraie image : savoir d'un coup d'œil si
+ce qu'on trouve chez Lefties ressemble vraiment, et voir plusieurs tenues avec
+leur prix.
+
+- Un second appel IA note chaque article trouvé, photo contre photo (0-100 %).
+- L'app compose trois tenues complètes, chacune avec un taux de ressemblance
+  pondéré par le poids visuel des pièces et son prix total. Une pièce sans
+  équivalent compte pour zéro.
+- Au passage, un défaut de la recherche a été corrigé : faute de résultat dans
+  le rayon homme, Lefties basculait en silence sur le rayon femme. C'est
+  désormais détecté.
+
+Le périmètre reste **Lefties seul**, par choix : rapport qualité/prix.
 
 ---
 
