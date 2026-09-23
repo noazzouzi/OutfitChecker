@@ -14,16 +14,18 @@
 import fs from 'node:fs'
 import { eq, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { jobsIa, vetements } from '@/lib/db/schema'
+import { jobsIa, profil, vetements } from '@/lib/db/schema'
 import {
   prochainJob,
   type PayloadAnalyse,
   type PayloadOutfitCopy,
+  type ResultatOutfitCopyComplet,
   type PayloadSuggestion,
   type ResultatSuggestion,
 } from '@/lib/jobs'
 import { cheminImage } from '@/lib/images.server'
 import { ia, ErreurQuotaIA } from '@/lib/ai'
+import { rechercherChezLefties, rayonDepuisProfil } from '@/lib/lefties'
 
 const INTERVALLE_MS = 2_000
 const TENTATIVES_MAX = 3
@@ -193,7 +195,29 @@ async function traiterOutfitCopy(payload: PayloadOutfitCopy) {
   if (resultat.propositions.length === 0) {
     throw new Error("Aucune combinaison exploitable n'a pu être formée.")
   }
-  return resultat
+
+  /*
+   * Recherche en boutique, à partir des requêtes que le modèle a rédigées pour
+   * chaque pièce repérée. Un échec ici ne doit pas perdre l'analyse : les
+   * propositions issues de la garde-robe valent déjà par elles-mêmes, et le
+   * navigateur peut très bien manquer sur la machine.
+   */
+  let boutique: ResultatOutfitCopyComplet['boutique'] = []
+  try {
+    // Le rayon vient du profil : c'est ce qui évite qu'une recherche d'homme
+    // ramène des articles femme, et inversement.
+    const fiche = (await db.select().from(profil).where(eq(profil.id, 1)).limit(1))[0]
+    boutique = await rechercherChezLefties(
+      resultat.reference.pieces
+        .map((piece, index) => ({ piece: index, requete: piece.recherche ?? '' }))
+        .filter((r) => r.requete.length > 0),
+      rayonDepuisProfil(fiche?.genrePresentation),
+    )
+  } catch (erreur) {
+    journal('recherche boutique indisponible :', erreur instanceof Error ? erreur.message : erreur)
+  }
+
+  return { ...resultat, boutique } satisfies ResultatOutfitCopyComplet
 }
 
 async function traiterUnJob(): Promise<boolean> {

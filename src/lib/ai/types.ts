@@ -58,6 +58,8 @@ export type PieceReference = {
   description: string
   couleur: string | null
   matiere: string | null
+  /** Requête prête à être soumise au moteur de recherche de la boutique. */
+  recherche: string | null
 }
 
 export type TenueDeReference = {

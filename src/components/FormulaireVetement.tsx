@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { OCCASIONS, SAISONS, STYLES } from '@/lib/constantes'
 import { urlImage } from '@/lib/images'
@@ -78,9 +78,12 @@ function depuisVetement(vetement: Vetement): Valeurs {
 export function FormulaireVetement({
   action,
   vetement,
+  urlInitiale,
 }: {
   action: Action
   vetement?: Vetement
+  /** Pré-remplit et déclenche l'import — utilisé depuis les résultats OutfitCopy. */
+  urlInitiale?: string
 }) {
   const [etat, envoyer, enCours] = useActionState(action, null)
 
@@ -97,6 +100,7 @@ export function FormulaireVetement({
     <div className="space-y-8">
       {!vetement && (
         <ImportUrl
+          urlInitiale={urlInitiale}
           onImport={(nouvelles) => {
             setValeurs({ ...VALEURS_VIDES, ...nouvelles })
             setApercuLocal(null)
@@ -215,12 +219,25 @@ export function FormulaireVetement({
   )
 }
 
-function ImportUrl({ onImport }: { onImport: (valeurs: Partial<Valeurs>) => void }) {
-  const [url, setUrl] = useState('')
+function ImportUrl({
+  onImport,
+  urlInitiale,
+}: {
+  onImport: (valeurs: Partial<Valeurs>) => void
+  urlInitiale?: string
+}) {
+  const [url, setUrl] = useState(urlInitiale ?? '')
   const [enCours, setEnCours] = useState(false)
   const [message, setMessage] = useState<{ type: 'ok' | 'erreur'; texte: string } | null>(null)
 
+  const departAutomatique = useRef(false)
+
   async function recuperer() {
+    await recupererUrl(url)
+  }
+
+  async function recupererUrl(cible: string) {
+    const url = cible
     if (!url.trim()) return
     setEnCours(true)
     setMessage(null)
@@ -255,6 +272,18 @@ function ImportUrl({ onImport }: { onImport: (valeurs: Partial<Valeurs>) => void
     }
     setEnCours(false)
   }
+
+  /*
+   * Arrivée depuis les résultats OutfitCopy : l'import part tout seul. Le
+   * verrou évite un second départ, React montant deux fois les composants en
+   * développement.
+   */
+  useEffect(() => {
+    if (!urlInitiale || departAutomatique.current) return
+    departAutomatique.current = true
+    void recupererUrl(urlInitiale)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlInitiale])
 
   return (
     <section className="rounded-lg border border-bordure bg-surface p-4">

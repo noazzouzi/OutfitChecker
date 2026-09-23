@@ -107,6 +107,7 @@ export const schemaOutfitCopy = z.object({
             description: texteNonVide,
             couleur: texteLibre,
             matiere: texteLibre,
+            recherche: texteLibre,
           }),
         )
         .default([]),

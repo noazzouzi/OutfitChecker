@@ -208,7 +208,8 @@ Réponds par un objet JSON valide et RIEN d'autre :
         "categorie": "haut, bas, robe, outerwear, chaussures ou accessoire",
         "description": "la pièce en quelques mots : type, coupe, détails visibles",
         "couleur": "nom courant en français",
-        "matiere": "matière apparente, ou null si indécidable"
+        "matiere": "matière apparente, ou null si indécidable",
+        "recherche": "3 à 6 mots pour retrouver une pièce semblable dans le moteur de recherche d'une enseigne de prêt-à-porter"
       }
     ]
   },
@@ -222,5 +223,19 @@ Réponds par un objet JSON valide et RIEN d'autre :
   ]
 }
 
-"proximite" est un entier de 0 à 100.`
+"proximite" est un entier de 0 à 100.
+
+Pour "recherche", écris comme on tape dans la barre de recherche d'une enseigne
+de prêt-à-porter : **2 à 4 mots**, pas davantage. Le type de pièce, plus au
+maximum deux qualificatifs vraiment distinctifs (matière ou couleur). Les
+moteurs de ces sites s'égarent dès qu'on les surcharge : « ceinture daim »
+trouve la bonne ceinture, « ceinture daim beige boucle argentée » ramène des
+sabots.
+
+Emploie le vocabulaire des catalogues français, pas les anglicismes :
+« col tunisien » et non « henley », « blouson bomber » et non « bomber jacket »,
+« pantalon large » et non « wide leg ». N'indique pas le rayon (homme, femme) :
+il est appliqué séparément. Pas de marque, pas de ponctuation.
+
+Exemples : "bomber suédine", "pantalon large plissé", "t-shirt col tunisien".`
 }

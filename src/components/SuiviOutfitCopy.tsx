@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { urlAffichage } from '@/lib/images'
-import type { ResultatOutfitCopy } from '@/lib/ai/types'
+import type { ResultatOutfitCopyComplet } from '@/lib/jobs'
 import type { Vetement } from '@/lib/db/schema'
+import type { RechercheBoutique } from '@/lib/lefties'
 
 type Etat = {
   statut: 'en_attente' | 'en_cours' | 'ok' | 'echec' | 'introuvable'
-  resultat: ResultatOutfitCopy | null
+  resultat: ResultatOutfitCopyComplet | null
   erreur: string | null
 }
 
@@ -120,6 +121,7 @@ export function SuiviOutfitCopy({
           </div>
         ) : (
           <div className="space-y-6">
+            <h2 className="text-sm font-semibold">Avec ce que tu as déjà</h2>
             {etat!.resultat!.propositions.map((proposition, index) => {
               const pieces = proposition.vetementIds
                 .map((id) => parId.get(id))
@@ -170,10 +172,80 @@ export function SuiviOutfitCopy({
                 </article>
               )
             })}
+
+            <Boutique
+              resultats={etat!.resultat!.boutique ?? []}
+              pieces={etat!.resultat!.reference.pieces}
+            />
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Ce qu'on peut acheter pour s'approcher davantage. Les articles viennent du
+ * moteur de recherche de Lefties, interrogé avec les requêtes que le modèle a
+ * rédigées — pas d'un catalogue stocké localement.
+ */
+function Boutique({
+  resultats,
+  pieces,
+}: {
+  resultats: RechercheBoutique[]
+  pieces: { description: string; categorie: string }[]
+}) {
+  const avecArticles = resultats.filter((r) => r.articles.length > 0)
+  if (avecArticles.length === 0) return null
+
+  return (
+    <section className="space-y-4 pt-4">
+      <div>
+        <h2 className="text-sm font-semibold">Ce qui s&apos;en rapproche chez Lefties</h2>
+        <p className="mt-1 text-xs text-texte-doux">
+          Résultats du moteur de recherche de la boutique, une requête par pièce repérée.
+          Un clic sur un article l&apos;importe dans ta garde-robe.
+        </p>
+      </div>
+
+      {avecArticles.map((resultat) => (
+        <div key={resultat.piece} className="space-y-2">
+          <p className="etiquette">
+            {pieces[resultat.piece]?.categorie ?? 'pièce'} · {resultat.requete}
+          </p>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+            {resultat.articles.map((article) => (
+              <li key={article.url}>
+                <Link
+                  href={`/vetements/nouveau?url=${encodeURIComponent(article.url)}`}
+                  className="group block overflow-hidden rounded-lg border border-bordure
+                             bg-surface transition hover:border-texte-doux"
+                >
+                  <div className="flex aspect-3/4 items-center justify-center overflow-hidden bg-fond">
+                    {article.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={article.image}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-contain transition group-hover:scale-105"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="space-y-0.5 p-2">
+                    <p className="truncate text-xs font-medium">{article.nom}</p>
+                    <p className="text-xs text-texte-doux">
+                      {article.prix != null ? `${article.prix.toFixed(2)} €` : '—'}
+                    </p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
   )
 }
 

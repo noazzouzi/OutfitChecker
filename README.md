@@ -197,6 +197,26 @@ et ça consomme moitié moins de quota.
 La note de proximité est une **estimation du modèle**, pas une mesure. Elle sert
 à classer, pas à quantifier.
 
+### Ce qui s'en rapproche en boutique
+
+Sous les propositions issues de ta garde-robe, l'écran affiche des articles
+Lefties réellement en vente. Pour chaque pièce repérée sur l'image, le modèle
+rédige une requête et l'app **interroge le moteur de recherche du site** — trois
+ou quatre requêtes par image, pas un catalogue aspiré. Un clic sur un article
+lance son import.
+
+Deux réglages font toute la différence sur la pertinence, tous deux appris à la
+mise au point :
+
+- **Des requêtes courtes, dans le vocabulaire du catalogue.** « ceinture daim »
+  trouve la bonne ceinture ; « ceinture daim beige boucle argentée » ramène des
+  sabots. Et le modèle doit écrire « col tunisien », pas « henley ».
+- **Un filtre de rayon**, déduit de la présentation renseignée dans ton profil.
+  Sans lui, une recherche d'homme ramène des articles femme. Seul
+  l'identifiant du rayon homme est vérifié ; pour en ajouter un autre, faire
+  une recherche sur lefties.com et relever le paramètre `filter` de l'URL
+  (voir `src/lib/lefties.ts`).
+
 ---
 
 ## Ce que fait le lot 1
@@ -256,6 +276,7 @@ src/
     ├── navigateur.ts           repli navigateur pour les boutiques protégées
     ├── images.ts               helpers partagés client/serveur
     ├── images.server.ts        écriture et lecture disque
+    ├── lefties.ts              recherche d'articles chez la boutique
     ├── jobs.ts                 file d'analyse et état de la file
     ├── prompts-image.ts        les deux variantes de prompt et l'ordre des pièces
     ├── requetes.ts             lectures en base

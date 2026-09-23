@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { jobsIa, vetements } from '@/lib/db/schema'
 
 import type { ContrainteOutfit, OutfitSuggere, ResultatOutfitCopy } from '@/lib/ai/types'
+import type { RechercheBoutique } from '@/lib/lefties'
 
 export type PayloadAnalyse = {
   vetementId: string
@@ -86,6 +87,11 @@ export async function enfilerSuggestion(contrainte: ContrainteOutfit): Promise<s
 }
 
 export type PayloadOutfitCopy = { referenceImageFichier: string }
+
+export type ResultatOutfitCopyComplet = ResultatOutfitCopy & {
+  /** Articles trouvés en boutique, une entrée par pièce de référence. */
+  boutique: RechercheBoutique[]
+}
 
 export type { ResultatOutfitCopy }
 

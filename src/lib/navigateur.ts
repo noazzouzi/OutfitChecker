@@ -76,10 +76,13 @@ export type PageRendue = {
 }
 
 /**
- * Charge une page dans un vrai navigateur et renvoie son contenu une fois
- * réellement présent.
+ * Ouvre un navigateur et un contexte prêts à l'emploi.
+ *
+ * Partagé entre la lecture d'une fiche produit et la recherche en boutique :
+ * démarrer un navigateur coûte une seconde ou deux, autant n'en ouvrir qu'un
+ * pour plusieurs pages.
  */
-export async function recupererHtmlAvecNavigateur(url: string): Promise<PageRendue> {
+export async function ouvrirNavigateur() {
   const executable = trouverNavigateur()
   if (!executable) throw new NavigateurIntrouvable()
 
@@ -92,12 +95,23 @@ export async function recupererHtmlAvecNavigateur(url: string): Promise<PageRend
     args: process.env.OUTFITCHECKER_CHROME_ARGS?.split(' ').filter(Boolean) ?? [],
   })
 
+  const contexte = await navigateur.newContext({
+    locale: 'fr-FR',
+    userAgent: USER_AGENT,
+    viewport: { width: 1280, height: 900 },
+  })
+
+  return { navigateur, contexte }
+}
+
+/**
+ * Charge une page dans un vrai navigateur et renvoie son contenu une fois
+ * réellement présent.
+ */
+export async function recupererHtmlAvecNavigateur(url: string): Promise<PageRendue> {
+  const { navigateur, contexte } = await ouvrirNavigateur()
+
   try {
-    const contexte = await navigateur.newContext({
-      locale: 'fr-FR',
-      userAgent: USER_AGENT,
-      viewport: { width: 1280, height: 900 },
-    })
     const page = await contexte.newPage()
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 })

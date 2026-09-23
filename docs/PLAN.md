@@ -359,6 +359,23 @@ Upload de référence, analyse, matching, conversion en outfit.
 
 **Critère de sortie** : une image de référence donne des tenues réelles.
 
+### Ajout hors plan — recherche en boutique depuis OutfitCopy — ✅ livré
+
+Demandé après coup : pouvoir repérer, à partir d'une image, les articles
+Lefties qui s'en rapprochent.
+
+La première idée — boucler sur tout le catalogue pour l'importer localement —
+a été écartée : plusieurs milliers d'articles, ~11 h d'analyses IA pour mille
+d'entre eux, un quota d'abonnement épuisé bien avant, un blocage anti-bot
+encore avant ça, et une garde-robe remplie de vêtements non possédés qui
+rendrait les suggestions inexploitables.
+
+Retenu à la place : **interroger le moteur de recherche du site**. Le modèle
+rédige une requête par pièce repérée sur l'image de référence, l'app lance
+trois ou quatre recherches, et affiche les articles avec nom, prix et photo.
+Un clic les importe. Pas de catalogue à maintenir, stock à jour, et c'est la
+pertinence de Lefties qui fait le tri.
+
 ---
 
 ## 6. Risques identifiés
