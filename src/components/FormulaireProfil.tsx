@@ -46,15 +46,27 @@ export function FormulaireProfil({ profil }: { profil: Profil | null }) {
         aide="Préférences libres. Elles seront injectées dans les prompts de génération d'image."
       />
 
-      {etat?.erreur && (
+      {etat && 'erreur' in etat && (
         <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40">
           {etat.erreur}
         </p>
       )}
 
-      <button className="bouton" type="submit" disabled={enCours}>
-        {enCours ? 'Enregistrement…' : 'Enregistrer le profil'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button className="bouton" type="submit" disabled={enCours}>
+          {enCours ? 'Enregistrement…' : 'Enregistrer le profil'}
+        </button>
+        {/* La clé relance l'annonce à chaque envoi, même identique au précédent. */}
+        {etat && 'enregistreA' in etat && !enCours && (
+          <span
+            key={etat.enregistreA}
+            role="status"
+            className="text-sm text-emerald-600 dark:text-emerald-400"
+          >
+            Profil enregistré
+          </span>
+        )}
+      </div>
     </form>
   )
 }

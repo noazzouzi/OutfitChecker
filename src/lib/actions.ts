@@ -275,10 +275,13 @@ const schemaProfil = z.object({
   notesStyle: texteOptionnel,
 })
 
+/** Le profil reste sur place après l'envoi : sans accusé, rien ne dit qu'il a été pris en compte. */
+export type EtatProfil = { erreur: string } | { enregistreA: number } | null
+
 export async function enregistrerProfil(
-  _precedent: EtatFormulaire,
+  _precedent: EtatProfil,
   formData: FormData,
-): Promise<EtatFormulaire> {
+): Promise<EtatProfil> {
   const lire = (cle: string) => (formData.get(cle) as string | null) ?? ''
   const analyse = schemaProfil.safeParse({
     tailleCm: lire('tailleCm'),
@@ -305,7 +308,7 @@ export async function enregistrerProfil(
   }
 
   revalidatePath('/profil')
-  return null
+  return { enregistreA: Date.now() }
 }
 
 /* ------------------------------------------------------------------ */

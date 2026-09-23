@@ -16,9 +16,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="fr" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
         <header className="border-b border-bordure bg-surface">
-          <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+          {/* Sur téléphone, le nom et le libellé du bouton raccourcissent : à
+              pleine longueur, la barre débordait de 65 px sur un écran de 390. */}
+          <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 whitespace-nowrap sm:gap-6">
             <Link href="/" className="text-sm font-semibold tracking-tight">
-              OutfitChecker
+              <span className="sm:hidden">OC</span>
+              <span className="hidden sm:inline">OutfitChecker</span>
             </Link>
             <div className="flex-1" />
             <Link href="/" className="text-sm text-texte-doux hover:text-texte">
@@ -30,8 +33,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
             <Link href="/profil" className="text-sm text-texte-doux hover:text-texte">
               Profil
             </Link>
-            <Link href="/vetements/nouveau" className="bouton">
-              Ajouter
+            <Link href="/vetements/nouveau" className="bouton" aria-label="Ajouter un vêtement">
+              <span aria-hidden className="sm:hidden">+</span>
+              <span className="hidden sm:inline">Ajouter</span>
             </Link>
           </nav>
         </header>
