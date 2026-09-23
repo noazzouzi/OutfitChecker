@@ -232,6 +232,11 @@ moteurs de ces sites s'égarent dès qu'on les surcharge : « ceinture daim »
 trouve la bonne ceinture, « ceinture daim beige boucle argentée » ramène des
 sabots.
 
+**Une seule pièce par requête, jamais une association.** Si la chemise est
+portée avec une cravate, cherche « chemise blanche » : « chemise cravate »
+demande au moteur un article qui serait les deux à la fois, et il renvoie
+n'importe quoi. Chaque pièce de la liste a déjà sa propre requête.
+
 Emploie le vocabulaire des catalogues français, pas les anglicismes :
 « col tunisien » et non « henley », « blouson bomber » et non « bomber jacket »,
 « pantalon large » et non « wide leg ». N'indique pas le rayon (homme, femme) :

@@ -52,8 +52,12 @@ export function rayonDepuisProfil(genrePresentation: string | null | undefined):
   return cle ? RAYONS[cle] : null
 }
 
-/** Au-delà, on solliciterait le site plus que de raison pour une seule image. */
-const MAX_REQUETES = 5
+/**
+ * Au-delà, on solliciterait le site plus que de raison pour une seule image.
+ * Six correspond à une tenue complète : manteau, haut, bas, chaussures,
+ * ceinture, cravate. À cinq, la dernière pièce repérée passait à la trappe.
+ */
+const MAX_REQUETES = 6
 const PAUSE_ENTRE_REQUETES_MS = 1_500
 
 /**
