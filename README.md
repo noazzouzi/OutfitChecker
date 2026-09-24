@@ -23,6 +23,12 @@ npm install
 npm run dev
 ```
 
+Aucun compilateur n'est nécessaire, y compris sous Windows : le module SQLite
+(`better-sqlite3`) télécharge un binaire tout prêt à l'installation. Si
+`npm install` échoue malgré tout avec « Could not find any Visual Studio
+installation », c'est qu'aucun binaire n'existe pour ta version de Node :
+repasse sur une version LTS (22 ou 24).
+
 `npm run dev` lance **deux processus** : le serveur Next et le worker d'analyse.
 L'application est sur <http://localhost:3000>.
 
