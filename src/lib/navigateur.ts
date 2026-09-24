@@ -34,6 +34,10 @@ const CHEMINS_CONNUS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  // Chrome installé pour l'utilisateur seul, sans droits administrateur.
+  ...(process.env.LOCALAPPDATA
+    ? [`${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`]
+    : []),
   // Linux
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable',

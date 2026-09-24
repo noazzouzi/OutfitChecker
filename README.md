@@ -136,7 +136,7 @@ sans appeler le CLI.
 
 | Variable | Effet |
 |---|---|
-| `OUTFITCHECKER_CLAUDE_BIN` | Chemin du binaire `claude` s'il n'est pas dans le `PATH` |
+| `OUTFITCHECKER_CLAUDE_BIN` | Chemin du binaire `claude` s'il n'est pas dans le `PATH` (sous Windows, `claude.cmd` ou `claude.exe` sont acceptés) |
 | `OUTFITCHECKER_MODELE` | Force un modèle (par défaut : celui configuré dans ton CLI) |
 | `OUTFITCHECKER_TIMEOUT_MS` | Délai maximal d'un appel (180 000 par défaut) |
 | `OUTFITCHECKER_CHROME` | Chemin du navigateur pour les boutiques protégées, s'il n'est pas à un emplacement usuel |

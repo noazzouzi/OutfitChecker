@@ -35,6 +35,39 @@ const MODELE = process.env.OUTFITCHECKER_MODELE ?? null
 const DELAI_MAX_MS = Number(process.env.OUTFITCHECKER_TIMEOUT_MS ?? 180_000)
 
 /**
+ * Sous Windows, `npm install -g` installe le CLI sous forme de `claude.cmd`.
+ * Le terminal le trouve parce qu'il complète l'extension ; `spawn` ne complète
+ * que `.exe` et `.com`, et échoue en ENOENT. On passe donc par le shell, qui
+ * sait résoudre un `.cmd` — ce que Node interdit de lancer directement depuis
+ * la version 20.12 de toute façon.
+ */
+const SUR_WINDOWS = process.platform === 'win32'
+
+/** Message commun quand le CLI est introuvable, quel que soit le système. */
+function cliIntrouvable(detail: string): Error {
+  return new Error(
+    `Impossible de lancer « ${BINAIRE} » : ${detail}. ` +
+      `Vérifie que le CLI Claude Code est installé et connecté, ou indique son ` +
+      `chemin complet dans OUTFITCHECKER_CLAUDE_BIN.`,
+  )
+}
+
+/** Réponse de cmd.exe quand la commande n'existe pas, en français ou en anglais. */
+const MOTIF_INTROUVABLE_WINDOWS = /n'est pas reconnu|is not recognized/i
+
+/**
+ * Arrête le CLI. Sous Windows, tuer le shell laisserait le vrai processus
+ * `claude` tourner orphelin : `taskkill /T` emporte toute l'arborescence.
+ */
+function arreter(processus: ReturnType<typeof spawn>) {
+  if (SUR_WINDOWS && processus.pid) {
+    spawn('taskkill', ['/pid', String(processus.pid), '/T', '/F'], { stdio: 'ignore' })
+  } else {
+    processus.kill('SIGKILL')
+  }
+}
+
+/**
  * Motifs signalant un quota d'abonnement atteint plutôt qu'une vraie erreur.
  * Le worker doit alors patienter, pas marquer le job en échec.
  */
@@ -83,10 +116,14 @@ function executerCli(
   if (MODELE) arguments_.push('--model', MODELE)
 
   return new Promise((resoudre, rejeter) => {
-    const processus = spawn(BINAIRE, arguments_, {
-      cwd: dossierTravail,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+    // Avec le shell, la ligne de commande est assemblée ici : les arguments
+    // sont fixes et sans espaces, seul le chemin du binaire est entre
+    // guillemets, puisqu'il peut en contenir (« C:\\Program Files\\… »).
+    const [commande, args] = SUR_WINDOWS
+      ? [[`"${BINAIRE}"`, ...arguments_].join(' '), []]
+      : [BINAIRE, arguments_]
+    // stdio par défaut : trois tubes (entrée, sortie, erreurs).
+    const processus = spawn(commande, args, { cwd: dossierTravail, shell: SUR_WINDOWS })
 
     let sortie = ''
     let erreurs = ''
@@ -94,7 +131,7 @@ function executerCli(
 
     const minuteur = setTimeout(() => {
       expire = true
-      processus.kill('SIGKILL')
+      arreter(processus)
     }, delaiMaxMs)
 
     processus.stdout.on('data', (morceau) => (sortie += morceau))
@@ -102,12 +139,7 @@ function executerCli(
 
     processus.on('error', (erreur) => {
       clearTimeout(minuteur)
-      rejeter(
-        new Error(
-          `Impossible de lancer « ${BINAIRE} » : ${erreur.message}. ` +
-            `Vérifie que le CLI Claude Code est installé et connecté.`,
-        ),
-      )
+      rejeter(cliIntrouvable(erreur.message))
     })
 
     processus.on('close', (code) => {
@@ -118,6 +150,10 @@ function executerCli(
       }
 
       const trace = `${sortie}\n${erreurs}`.trim()
+
+      if (code !== 0 && SUR_WINDOWS && MOTIF_INTROUVABLE_WINDOWS.test(trace)) {
+        return rejeter(cliIntrouvable('commande introuvable dans le PATH'))
+      }
 
       if (code !== 0) {
         return rejeter(
